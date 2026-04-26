@@ -57,13 +57,13 @@ const ManageTeachers = () => {
         }
     };
 
-    const handleDeleteTeacher = async (id) => {
-        if (!confirm('Are you sure?')) return;
+    const handleDeleteTeacher = async (id, name) => {
+        if (!window.confirm(`Delete teacher "${name}"? This cannot be undone.`)) return;
         try {
             await api.delete(`/admin/teachers/${id}`);
             fetchData();
         } catch (err) {
-            alert('Error');
+            alert('Failed to delete teacher. They may have active courses or students.');
         }
     };
 
@@ -148,11 +148,11 @@ const ManageTeachers = () => {
                                             </div>
                                         </td>
                                         <td className="py-5 px-8">
-                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex justify-end gap-2">
                                                 <button className="p-2 text-[#64748B] hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
                                                     <Edit size={18} />
                                                 </button>
-                                                <button onClick={() => handleDeleteTeacher(t.id)} className="p-2 text-[#64748B] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                                <button onClick={() => handleDeleteTeacher(t.id, t.name)} className="p-2 text-[#64748B] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                                                     <Trash2 size={18} />
                                                 </button>
                                             </div>

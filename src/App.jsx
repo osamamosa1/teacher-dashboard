@@ -14,6 +14,7 @@ import ManageGrades from './pages/ManageGrades';
 import MonthlyRevenue from './pages/MonthlyRevenue';
 import MonthTransactions from './pages/MonthTransactions';
 import CurrentExams from './pages/CurrentExams';
+import AdminSettings from './pages/AdminSettings';
 import Layout from './components/Layout';
 
 
@@ -22,14 +23,14 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   if (!token) return <Navigate to="/login" />;
-  if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/" />;
+  if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/login" />;
 
   return children;
 };
 
 function App() {
   return (
-    <Router>
+    <Router basename="/dashboard">
       <Routes>
         <Route path="/login" element={<Login />} />
 
@@ -37,6 +38,14 @@ function App() {
           <ProtectedRoute allowedRoles={['admin']}>
             <Layout>
               <AdminDashboard />
+            </Layout>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/admin/settings" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <Layout>
+              <AdminSettings />
             </Layout>
           </ProtectedRoute>
         } />

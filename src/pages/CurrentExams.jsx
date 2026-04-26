@@ -494,9 +494,10 @@ const CurrentExams = () => {
                                                     </td>
                                                     <td className="px-6 py-4 font-bold">
                                                         <span className={sub.passed ? 'text-emerald-600' : 'text-red-500'}>
-                                                            {sub.score}
+                                                            {sub.score ?? '0'}
                                                         </span>
-                                                        <span className="text-gray-400"> / {sub.total_mark || sub.totalMark}</span>
+                                                        <span className="text-gray-400"> / {sub.total_mark ?? sub.totalMark ?? sub.TotalMark ?? 'ERR'}</span>
+                                                        { (sub.total_mark === 0 || sub.totalMark === 0 || sub.TotalMark === 0) && <span className="text-[8px] text-red-300">V0</span> }
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         {sub.passed ? (

@@ -1,4 +1,4 @@
-import { Users, BookOpen, GraduationCap, TrendingUp, Plus } from 'lucide-react';
+import { Users, BookOpen, GraduationCap, TrendingUp, Plus, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const AdminDashboard = () => {
@@ -22,6 +22,9 @@ const AdminDashboard = () => {
                     </Link>
                     <Link to="/admin/grades" className="bg-white border border-[#E2E8F0] text-[#0F172A] hover:bg-[#F8FAFC] px-6 py-3 rounded-xl font-bold tracking-tight shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95">
                         <GraduationCap size={18} className="text-[#64748B]" /> Manage Grades
+                    </Link>
+                    <Link to="/admin/settings" className="bg-white border border-[#E2E8F0] text-[#0F172A] hover:bg-[#F8FAFC] px-6 py-3 rounded-xl font-bold tracking-tight shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95">
+                        <Settings size={18} className="text-[#64748B]" /> Platform Settings
                     </Link>
                     <Link to="/admin/teachers" className="bg-indigo-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl font-bold tracking-tight shadow-lg shadow-indigo-900/10 flex items-center justify-center gap-2 transition-all active:scale-95">
                         <Plus size={20} /> Register Teacher

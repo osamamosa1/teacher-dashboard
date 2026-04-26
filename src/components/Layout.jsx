@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, NavLink, useLocation } from 'react-router-dom';
+import api from '../api/axios';
 import {
     LayoutDashboard, Users, BookOpen, LogOut, Settings,
     Bell, Search, Plus, PieChart, MessageSquare, BarChart3, Grid, GraduationCap, ClipboardList, Menu, X
@@ -10,8 +11,23 @@ const Layout = ({ children }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const [settings, setSettings] = useState(null);
+    const rawUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = rawUser.user || rawUser; // Handle nested user object
     const isAdmin = user.role === 'admin';
+
+    useEffect(() => {
+        fetchSettings();
+    }, []);
+
+    const fetchSettings = async () => {
+        try {
+            const res = await api.get('/settings/1');
+            setSettings(res.data.data);
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     const handleLogout = () => {
         localStorage.clear();
@@ -34,14 +50,18 @@ const Layout = ({ children }) => {
             )}
 
             {/* Sidebar */}
-            <aside className={`sidebar shadow-sm ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} z-[100]`}>
+            <aside className={`sidebar shadow-sm ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} z-[1000]`}>
                 <div className="flex items-center justify-between mb-10 px-2 lg:block">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-indigo-900 rounded-lg flex items-center justify-center text-white">
-                            <Grid size={22} />
+                        <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-white overflow-hidden border border-slate-100 shadow-sm">
+                            {settings?.logo_url ? (
+                                <img src={settings.logo_url} className="w-full h-full object-contain" alt="Logo" />
+                            ) : (
+                                <Grid className="text-indigo-900" size={22} />
+                            )}
                         </div>
                         <h2 className="text-xl font-extrabold text-[#1e293b] tracking-tight whitespace-nowrap">
-                            {isAdmin ? 'Admin' : 'Teacher'}
+                            {settings?.app_name || (isAdmin ? 'Admin' : 'Teacher')}
                         </h2>
                     </div>
                     <button 

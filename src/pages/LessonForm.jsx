@@ -125,7 +125,20 @@ const LessonForm = () => {
             }
             navigate(`/teacher/courses/${courseId}`);
         } catch (err) {
-            alert('Failed to save lesson.');
+            console.error('Save lesson error:', err);
+            let msg = 'Failed to save lesson.';
+            let details = '';
+
+            if (err.response?.data) {
+                if (typeof err.response.data === 'string') {
+                    // Handle HTML error pages from IIS/ASP.NET
+                    details = err.response.data.substring(0, 200);
+                } else {
+                    msg = err.response.data.message || msg;
+                    details = err.response.data.inner || '';
+                }
+            }
+            alert(`${msg}${details ? `\nDetails: ${details}` : ''}`);
         } finally {
             setSaving(false);
         }

@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import api from '../api/axios';
 
 const TeacherDashboard = () => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const rawUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = rawUser.user || rawUser; // Handle nested user object from backend
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [grades, setGrades] = useState([]);

@@ -253,6 +253,16 @@ const ManageStudents = () => {
         }
     };
 
+    const handleDeleteStudent = async (student) => {
+        if (!window.confirm(`Delete "${student.student_name}"? This cannot be undone.`)) return;
+        try {
+            await api.delete(`/teacher/students/${student.student_id}`);
+            fetchInitialData();
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to delete student.');
+        }
+    };
+
     const handleViewStudents = (course, e) => {
         if (e) e.stopPropagation();
         navigate(`/teacher/students?courseId=${course.id}`);
@@ -591,6 +601,13 @@ const ManageStudents = () => {
                                                 : student.is_active
                                                     ? <XCircle size={18} />
                                                     : <CheckCircle size={18} />}
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteStudent(student)}
+                                            title="Delete Student Account"
+                                            className="w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center bg-red-100 text-red-600 hover:bg-red-600 hover:text-white transition-all font-bold"
+                                        >
+                                            <Trash2 size={16} />
                                         </button>
                                     </div>
                                 </div>

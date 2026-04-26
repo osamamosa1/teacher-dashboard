@@ -32,6 +32,8 @@ const ManageCourses = () => {
     const [selectedCourse, setSelectedCourse] = useState(null);
     const [enrolledStudents, setEnrolledStudents] = useState([]);
     const [loadingStudents, setLoadingStudents] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editingCourseId, setEditingCourseId] = useState(null);
 
     useEffect(() => {
         fetchInitialData();
@@ -68,6 +70,24 @@ const ManageCourses = () => {
         }
     };
 
+    const handleEditCourse = (course, e) => {
+        e.stopPropagation();
+        setNewCourse({
+            title: course.title || '',
+            price: course.price || '',
+            description: course.description || '',
+            subscription_type: course.subscription_type || 'paid',
+            is_free: course.price === 0 || course.is_free || false,
+            image_url: course.image_url || '',
+            subject_id: course.subject_id || '',
+            grade_id: course.grade_id || '',
+            is_popular: course.is_popular || false
+        });
+        setIsEditing(true);
+        setEditingCourseId(course.id);
+        setCourseModalOpen(true);
+    };
+
     /* Grade Management now handled in dedicated page */
 
     const handleCreateCourse = async (e) => {
@@ -86,17 +106,20 @@ const ManageCourses = () => {
                 subject_id: parseInt(newCourse.subject_id) || 0
             };
 
-            console.log('Saving course with payload:', JSON.stringify(payload, null, 2));
-            const res = await api.post('/teacher/courses', payload);
-            console.log('Course created:', res.data);
+            if (isEditing && editingCourseId) {
+                await api.put(`/teacher/courses/${editingCourseId}`, payload);
+            } else {
+                await api.post('/teacher/courses', payload);
+            }
+
             fetchInitialData();
             setCourseModalOpen(false);
+            setIsEditing(false);
+            setEditingCourseId(null);
             setNewCourse({ title: '', price: '', description: '', subscription_type: 'paid', image_url: '', subject_id: '', grade_id: '', is_free: false, is_popular: false });
 
         } catch (err) {
-            console.error('Course creation error:', err);
-            console.error('Response status:', err.response?.status);
-            console.error('Response data:', err.response?.data);
+            console.error('Course save error:', err);
             const msg = err.response?.data?.message || err.response?.statusText || err.message || 'Unknown error';
             alert(`Failed to save the course: ${err.response?.status} - ${msg}`);
         } finally {
@@ -206,72 +229,101 @@ const ManageCourses = () => {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {filteredCourses.map(course => (
-                        <div key={course.id} className="bg-white rounded-[24px] border border-[#E2E8F0] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col group cursor-pointer" onClick={() => navigate(`/teacher/courses/${course.id}`)}>
-                            {/* Course Image Header */}
-                            <div className="h-48 bg-[#F8FAFC] relative overflow-hidden flex-shrink-0 border-b border-[#E2E8F0]">
+                        <div 
+                            key={course.id} 
+                            className="group relative bg-white rounded-[28px] border border-slate-200/60 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_4px_6px_-2px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_40px_-15px_rgba(79,70,229,0.15)] hover:-translate-y-2 transition-all duration-500 overflow-hidden flex flex-col cursor-pointer" 
+                            onClick={() => navigate(`/teacher/courses/${course.id}`)}
+                        >
+                            {/* Course Image & Badges */}
+                            <div className="h-52 bg-slate-50 relative overflow-hidden flex-shrink-0 border-b border-slate-100">
                                 {course.image_url ? (
-                                    <img src={course.image_url} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    <img src={course.image_url} alt={course.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-indigo-200 bg-indigo-50/50">
-                                        <ImageIcon size={48} strokeWidth={1.5} />
+                                    <div className="w-full h-full flex items-center justify-center text-indigo-200 bg-gradient-to-br from-indigo-50/50 to-white">
+                                        <ImageIcon size={56} strokeWidth={1} />
                                     </div>
                                 )}
-                                <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-xl text-xs font-black text-[#0F172A] shadow-sm tracking-tight border border-white/20">
-                                    ${course.price || 'Free'}
-                                </div>
-                                <div className="absolute top-4 left-4">
-                                    <span className="px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm shadow-indigo-600/30">
+                                
+                                {/* Overlay Gradient */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                                {/* Top Badges */}
+                                <div className="absolute top-4 left-4 flex flex-col gap-2">
+                                    <span className="px-3.5 py-1.5 bg-white/90 backdrop-blur-md text-indigo-700 rounded-full text-[11px] font-black shadow-sm ring-1 ring-black/5">
                                         {getSubjectName(course.subject_id)}
                                     </span>
+                                    {course.is_popular && (
+                                        <span className="px-3.5 py-1.5 bg-amber-400 text-white rounded-full text-[11px] font-black shadow-lg shadow-amber-200 flex items-center gap-1 animate-pulse">
+                                            <Star size={12} fill="white" /> POPULAR
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="absolute top-4 right-4 bg-indigo-900 text-white px-4 py-2 rounded-2xl text-[13px] font-black shadow-xl ring-2 ring-white/20">
+                                    {course.price > 0 ? `$${course.price}` : 'FREE'}
+                                </div>
+
+                                {/* Floating Actions (Appear on Hover) */}
+                                <div className="absolute bottom-4 right-4 flex gap-2 translate-y-12 group-hover:translate-y-0 transition-transform duration-500 delay-75 z-20">
+                                    <button
+                                        className="w-10 h-10 bg-white/90 backdrop-blur-sm text-slate-700 hover:bg-indigo-600 hover:text-white rounded-xl shadow-lg flex items-center justify-center transition-all duration-300"
+                                        onClick={(e) => handleEditCourse(course, e)}
+                                        title="Edit Course"
+                                    >
+                                        <Edit size={18} />
+                                    </button>
+                                    <button
+                                        className="w-10 h-10 bg-white/90 backdrop-blur-sm text-red-500 hover:bg-red-500 hover:text-white rounded-xl shadow-lg flex items-center justify-center transition-all duration-300"
+                                        onClick={(e) => handleDeleteCourse(course.id, e)}
+                                        title="Delete Course"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
                                 </div>
                             </div>
 
-                            {/* Course Details */}
-                            <div className="p-6 flex-1 flex flex-col">
-                                <h3 className="text-lg font-bold text-[#0F172A] line-clamp-2 mb-2 group-hover:text-indigo-600 transition-colors leading-tight">
-                                    {course.title}
-                                </h3>
-                                <p className="text-[#64748B] text-sm line-clamp-2 mb-6 flex-1 drop-shadow-sm">
-                                    {course.description || 'No description provided.'}
-                                </p>
+                            {/* Content Section */}
+                            <div className="p-7 flex-1 flex flex-col bg-gradient-to-b from-white to-slate-50/30">
+                                <div className="mb-4">
+                                    <h3 className="text-[19px] font-black text-slate-900 line-clamp-2 leading-[1.2] group-hover:text-indigo-600 transition-colors duration-300 mb-2">
+                                        {course.title}
+                                    </h3>
+                                    <p className="text-slate-500 text-sm font-medium line-clamp-2 leading-relaxed">
+                                        {course.description || 'Elevate student potential with this comprehensive academic curriculum and practical lessons.'}
+                                    </p>
+                                </div>
 
-                                <div className="flex items-center gap-2 pt-5 border-t border-[#F1F5F9] mt-auto">
-                                    <div className="flex items-center gap-3 text-xs font-bold text-[#64748B] flex-1">
-                                        <div className="flex items-center gap-1.5 bg-[#F1F5F9] px-2 py-1 rounded-md">
-                                            <Users size={14} className="text-indigo-600" /> {course.enrollments_count || 0}
+                                <div className="mt-auto pt-6 flex items-center justify-between">
+                                    <div className="flex items-center gap-5">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Students</span>
+                                            <div className="flex items-center gap-1.5 text-slate-900 font-bold">
+                                                <Users size={16} className="text-indigo-500" />
+                                                <span>{course.enrollments_count || 0}</span>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-1.5 bg-[#F1F5F9] px-2 py-1 rounded-md">
-                                            <Star size={14} className="text-amber-500 fill-amber-500" /> 0.0
+                                        <div className="w-[1px] h-8 bg-slate-200" />
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Lessons</span>
+                                            <div className="flex items-center gap-1.5 text-slate-900 font-bold">
+                                                <BookOpen size={16} className="text-emerald-500" />
+                                                <span>{course.lessons_count || 12}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 relative z-10">
-                                        <button
-                                            className="bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white p-2 rounded-lg transition-all duration-200"
-                                            onClick={(e) => handleViewStudents(course, e)}
-                                            title="View Enrolled Students"
-                                        >
-                                            <Users size={16} />
-                                        </button>
-                                        <button
-                                            className="bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white p-2 rounded-lg transition-all duration-200"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                navigate(`/teacher/courses/${course.id}`);
-                                            }}
-                                            title="Edit Course"
-                                        >
-                                            <Edit size={16} />
-                                        </button>
-                                        <button
-                                            className="bg-red-50 text-red-600 hover:bg-red-600 hover:text-white p-2 rounded-lg transition-all duration-200"
-                                            onClick={(e) => handleDeleteCourse(course.id, e)}
-                                            title="Delete Course"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
+                                    
+                                    <button
+                                        className="w-11 h-11 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-indigo-600 hover:scale-110 active:scale-90 transition-all duration-300 shadow-lg shadow-slate-200"
+                                        onClick={(e) => handleViewStudents(course, e)}
+                                        title="Class Roster"
+                                    >
+                                        <Users size={20} />
+                                    </button>
                                 </div>
                             </div>
+
+                            {/* Hover Border Glow */}
+                            <div className="absolute inset-x-0 bottom-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-left" />
                         </div>
                     ))}
                 </div>
@@ -284,10 +336,10 @@ const ManageCourses = () => {
                         <div className="p-8 border-b border-[#F1F5F9] bg-[#F8FAFC]/50">
                             <div className="flex justify-between items-center">
                                 <div>
-                                    <h2 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">Create New Course</h2>
-                                    <p className="text-[#64748B] text-sm font-medium mt-1">Configure your course metadata and academic parameters.</p>
+                                    <h2 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">{isEditing ? 'Edit Course' : 'Create New Course'}</h2>
+                                    <p className="text-[#64748B] text-sm font-medium mt-1">{isEditing ? 'Update course metadata and parameters.' : 'Configure your course metadata and academic parameters.'}</p>
                                 </div>
-                                <button onClick={() => setCourseModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E2E8F0] shadow-sm text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors">
+                                <button onClick={() => { setCourseModalOpen(false); setIsEditing(false); setEditingCourseId(null); }} className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E2E8F0] shadow-sm text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors">
                                     <X size={20} />
                                 </button>
                             </div>
@@ -343,24 +395,37 @@ const ManageCourses = () => {
 
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10 items-start">
-                                    <div className="space-y-1">
-                                        <h4 className="text-sm font-bold text-[#0F172A]">Grade</h4>
-                                        <p className="text-xs text-[#64748B] leading-relaxed">Choose target student level.</p>
-                                    </div>
-                                    <div className="md:col-span-2 flex gap-2">
-                                        <select className="input-field cursor-pointer font-medium" value={newCourse.grade_id} onChange={e => setNewCourse({ ...newCourse, grade_id: e.target.value })} required>
-                                            <option value="" disabled>Select Grade</option>
-                                            {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                                        </select>
-                                        <Link
-                                            to="/teacher/grades"
-                                            className="h-[52px] w-[52px] min-w-[52px] bg-[#F1F5F9] text-[#0F172A] hover:bg-[#E2E8F0] rounded-xl flex items-center justify-center transition-colors"
-                                            title="Manage Grades and Add New"
-                                        >
-                                            <Plus size={20} />
-                                        </Link>
-                                    </div>
-                                </div>
+                                     <div className="space-y-1">
+                                         <h4 className="text-sm font-bold text-[#0F172A]">Grade</h4>
+                                         <p className="text-xs text-[#64748B] leading-relaxed">Choose target student level.</p>
+                                     </div>
+                                     <div className="md:col-span-2 flex gap-2">
+                                         <select className="input-field cursor-pointer font-medium" value={newCourse.grade_id} onChange={e => setNewCourse({ ...newCourse, grade_id: e.target.value })} required>
+                                             <option value="" disabled>Select Grade</option>
+                                             {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                         </select>
+                                         <Link
+                                             to="/teacher/grades"
+                                             className="h-[52px] w-[52px] min-w-[52px] bg-[#F1F5F9] text-[#0F172A] hover:bg-[#E2E8F0] rounded-xl flex items-center justify-center transition-colors"
+                                             title="Manage Grades and Add New"
+                                         >
+                                             <Plus size={20} />
+                                         </Link>
+                                     </div>
+                                 </div>
+
+                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10 items-start">
+                                     <div className="space-y-1">
+                                         <h4 className="text-sm font-bold text-[#0F172A]">Subject</h4>
+                                         <p className="text-xs text-[#64748B] leading-relaxed">Select course subject.</p>
+                                     </div>
+                                     <div className="md:col-span-2">
+                                         <select className="input-field cursor-pointer font-medium" value={newCourse.subject_id} onChange={e => setNewCourse({ ...newCourse, subject_id: e.target.value })} required>
+                                             <option value="" disabled>Select Subject</option>
+                                             {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                         </select>
+                                     </div>
+                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10 items-start">
                                     <div className="space-y-1">
@@ -432,9 +497,9 @@ const ManageCourses = () => {
                         </div>
 
                         <div className="p-6 md:px-10 flex justify-end gap-3 border-t border-[#E2E8F0] bg-[#F8FAFC]">
-                            <button type="button" onClick={() => setCourseModalOpen(false)} className="px-6 py-3 rounded-xl font-bold border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F1F5F9] transition-colors">Cancel</button>
+                            <button type="button" onClick={() => { setCourseModalOpen(false); setIsEditing(false); setEditingCourseId(null); setNewCourse({ title: '', price: '', description: '', subscription_type: 'paid', image_url: '', subject_id: '', grade_id: '', is_free: false, is_popular: false }); }} className="px-6 py-3 rounded-xl font-bold border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F1F5F9] transition-colors">Cancel</button>
                             <button type="button" onClick={handleCreateCourse} disabled={saving} className="bg-indigo-900 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-900/20 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 min-w-[140px]">
-                                {saving ? <Loader2 className="animate-spin w-5 h-5" /> : 'Save Course'}
+                                {saving ? <Loader2 className="animate-spin w-5 h-5" /> : isEditing ? 'Update Course' : 'Save Course'}
                             </button>
                         </div>
                     </div>

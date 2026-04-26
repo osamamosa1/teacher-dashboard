@@ -9,8 +9,10 @@ import {
     ArrowRight,
     Eye,
     EyeOff,
-    ShieldCheck
+    ShieldCheck,
+    Globe
 } from "lucide-react";
+import axios from "axios";
 
 const Login = () => {
     const navigate = useNavigate();
@@ -20,7 +22,21 @@ const Login = () => {
 
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [settings, setSettings] = useState(null);
     const [error, setError] = useState("");
+
+    useState(() => {
+        const fetchSettings = async () => {
+            try {
+                // Determine API root based on the dashboard context
+                const res = await axios.get('/api/v1/settings/1');
+                setSettings(res.data.data);
+            } catch (err) {
+                console.error("Failed to load settings");
+            }
+        };
+        fetchSettings();
+    }, []);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -65,12 +81,16 @@ const Login = () => {
                     {/* logo */}
                     <div className="flex flex-col items-center mb-8">
 
-                        <div className="w-14 h-14 flex items-center justify-center bg-indigo-900 text-white rounded-xl shadow-lg shadow-indigo-900/30">
-                            <ShieldCheck size={28} />
+                        <div className="w-16 h-16 flex items-center justify-center bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden mb-2">
+                            {settings?.logo_url ? (
+                                <img src={settings.logo_url} className="w-full h-full object-contain" alt="Logo" />
+                            ) : (
+                                <ShieldCheck className="text-indigo-900" size={32} />
+                            )}
                         </div>
 
                         <h1 className="mt-4 text-3xl font-extrabold text-slate-900">
-                            Welcome Back
+                            {settings?.app_name || "Welcome Back"}
                         </h1>
 
                         <p className="text-sm text-slate-500 mt-1">

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const instance = axios.create({
-    baseURL: 'http://localhost:5145/api/v1',
+    baseURL: '/api/v1',
 });
 
 instance.interceptors.request.use((config) => {
@@ -18,7 +18,7 @@ instance.interceptors.response.use(
         if (error.response?.status === 401) {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            window.location.href = '/login';
+            window.location.href = '/dashboard/login';
         }
         return Promise.reject(error);
     }
