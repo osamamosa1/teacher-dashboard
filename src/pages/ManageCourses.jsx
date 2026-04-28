@@ -138,7 +138,7 @@ const ManageCourses = () => {
             setSaving(true);
             const res = await api.post('/uploads/image', formData);
             if (res.data.status === 'success') {
-                setNewCourse({ ...newCourse, image_url: res.data.url });
+                setNewCourse(prev => ({ ...prev, image_url: res.data.url }));
             }
         } catch (err) {
             console.error('Upload error:', err);
