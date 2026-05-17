@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../api/axios';
 import { User, Mail, Phone, MapPin, Calendar, FileText, Loader2, Save, Camera, LogOut, Settings as SettingsIcon, Globe, Facebook, Youtube, MessageCircle, Image } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -11,6 +11,12 @@ const Profile = () => {
     const [updatingBranding, setUpdatingBranding] = useState(false);
     const [message, setMessage] = useState('');
     const navigate = useNavigate();
+    const fileInputRef = useRef(null);
+
+    // Helper: extract profile from either nested {data:{user:{...}}} or flat {data:{...}}
+    const extractProfile = (responseData) => {
+        return responseData?.data?.user || responseData?.data || null;
+    };
 
     useEffect(() => {
         fetchInitData();
@@ -22,7 +28,7 @@ const Profile = () => {
                 api.get('/user/profile'),
                 api.get('/settings/1')
             ]);
-            const profileData = profileRes.data?.data?.user || profileRes.data?.data;
+            const profileData = extractProfile(profileRes.data);
             if (profileData && typeof profileData === 'object') {
                 setProfile(profileData);
             }
@@ -47,11 +53,15 @@ const Profile = () => {
         setMessage('');
         try {
             const res = await api.put('/user/profile', profile);
-            setProfile(res.data.data);
-            localStorage.setItem('user', JSON.stringify(res.data.data)); // Update local storage
+            const savedProfile = extractProfile(res.data);
+            if (savedProfile) {
+                setProfile(savedProfile);
+                localStorage.setItem('user', JSON.stringify(savedProfile));
+            }
             setMessage('Profile updated successfully!');
             setTimeout(() => setMessage(''), 3000);
         } catch (err) {
+            console.error('Profile update error:', err.response?.data || err);
             alert('Error updating profile.');
         } finally {
             setSaving(false);
@@ -103,9 +113,54 @@ const Profile = () => {
                                 className="w-full h-full rounded-full object-cover border-4 border-white shadow-lg shadow-indigo-100"
                                 alt={profile.name}
                             />
-                            <button className="absolute bottom-0 right-0 w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-all border-4 border-white">
+                            <button 
+                                type="button"
+                                onClick={() => fileInputRef.current.click()}
+                                className="absolute bottom-0 right-0 w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-all border-4 border-white"
+                            >
                                 <Camera size={18} />
                             </button>
+                            <input 
+                                ref={fileInputRef}
+                                type="file" 
+                                className="hidden" 
+                                accept="image/*" 
+                                onChange={async (e) => {
+                                    const file = e.target.files[0];
+                                    if (!file) return;
+                                    try {
+                                        // Optimistic preview immediately
+                                        const localPreviewUrl = URL.createObjectURL(file);
+                                        setProfile(prev => ({ ...prev, profile_image_url: localPreviewUrl }));
+
+                                        // Single multipart request: send file + profile fields together
+                                        const formData = new FormData();
+                                        formData.append('profile_image', file);
+                                        formData.append('name', profile.name || '');
+                                        formData.append('email', profile.email || '');
+                                        formData.append('phone', profile.phone || '');
+                                        formData.append('address', profile.address || '');
+                                        formData.append('notes', profile.notes || '');
+                                        formData.append('date_of_birth', profile.date_of_birth || '');
+
+                                        const saveRes = await api.post('/user/profile', formData, {
+                                            headers: { 'Content-Type': 'multipart/form-data' }
+                                        });
+                                        
+                                        const savedProfile = extractProfile(saveRes.data);
+                                        if (savedProfile) {
+                                            setProfile(savedProfile);
+                                            localStorage.setItem('user', JSON.stringify(savedProfile));
+                                        }
+                                        
+                                        setMessage('Profile image updated!');
+                                        setTimeout(() => setMessage(''), 3000);
+                                    } catch (err) {
+                                        console.error('Image update failed:', err.response?.data || err);
+                                        alert('Upload failed: ' + (err.response?.data?.message || err.message));
+                                    }
+                                }} 
+                            />
                         </div>
                         <h2 className="text-xl font-bold text-[#0F172A]">{profile.name}</h2>
                         <p className="text-sm font-bold text-indigo-600 uppercase tracking-widest mt-1">{profile.role}</p>

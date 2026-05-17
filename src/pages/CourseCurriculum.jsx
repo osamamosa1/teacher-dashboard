@@ -820,13 +820,13 @@ const CourseCurriculum = () => {
                                                     <div className="bg-white/60 p-3 rounded-xl border border-white">
                                                         <p className="text-[10px] font-black text-[#94A3B8] uppercase mb-1">Student Answer</p>
                                                         <p className={item.correct ? 'text-emerald-700' : 'text-red-600'}>
-                                                            {item.student_option_id ? `Selected Option ID: ${item.student_option_id}` : 'No Answer Provided'}
+                                                            {item.student_answer_text || (item.student_option_id ? `ID: ${item.student_option_id}` : 'No Answer')}
                                                         </p>
                                                     </div>
                                                     <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100">
                                                         <p className="text-[10px] font-black text-emerald-600 uppercase mb-1">Correct Solution</p>
                                                         <p className="text-emerald-900">
-                                                            {item.correct_option_text || `Option ID: ${item.correct_option_id}`}
+                                                            {item.correct_option_text || (item.correct_option_id ? `ID: ${item.correct_option_id}` : 'N/A')}
                                                         </p>
                                                     </div>
                                                 </div>

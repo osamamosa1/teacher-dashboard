@@ -570,14 +570,16 @@ const CurrentExams = () => {
                                                     <div className="flex flex-col sm:flex-row gap-3 mt-4 text-xs">
                                                         <div className="flex-1 p-3 rounded-xl bg-white border border-gray-100 shadow-sm">
                                                             <span className="block text-gray-400 font-bold mb-1 uppercase text-[9px]">Student Answer</span>
-                                                            <span className={`font-black ${q.correct ? 'text-emerald-700' : 'text-danger'}`}>{q.student_answer_text || q.studentAnswerText || 'No Answer'}</span>
+                                                            <span className={`font-black ${q.correct ? 'text-emerald-700' : 'text-danger'}`}>
+                                                                {q.student_answer_text || q.studentAnswerText || (q.student_option_id || q.studentOptionId ? `ID: ${q.student_option_id || q.studentOptionId}` : 'No Answer')}
+                                                            </span>
                                                         </div>
-                                                        {!q.correct && (
-                                                            <div className="flex-1 p-3 rounded-xl bg-white border border-gray-100 shadow-sm border-l-4 border-l-emerald-400">
-                                                                <span className="block text-gray-400 font-bold mb-1 uppercase text-[9px]">Correct Answer</span>
-                                                                <span className="font-black text-emerald-700">{q.correct_option_text || q.correctOptionText}</span>
-                                                            </div>
-                                                        )}
+                                                        <div className="flex-1 p-3 rounded-xl bg-white border border-gray-100 shadow-sm border-l-4 border-l-emerald-400">
+                                                            <span className="block text-gray-400 font-bold mb-1 uppercase text-[9px]">Correct Answer</span>
+                                                            <span className="font-black text-emerald-700">
+                                                                {q.correct_option_text || q.correctOptionText || (q.correct_option_id || q.correctOptionId ? `ID: ${q.correct_option_id || q.correctOptionId}` : 'N/A')}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ));

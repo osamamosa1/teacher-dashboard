@@ -24,8 +24,6 @@ const TeacherDashboard = () => {
         }
     };
 
-
-
     // Helper to get value from stats object regardless of casing (snake_case vs PascalCase)
     const getStat = (key) => {
         if (!stats || !stats.stats) return 0;

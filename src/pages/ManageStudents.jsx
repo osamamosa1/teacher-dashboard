@@ -648,9 +648,12 @@ const ManageStudents = () => {
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center justify-between gap-2 mb-1">
                                                                     <span className="text-sm font-bold text-[#0F172A] truncate">{course.title}</span>
-                                                                    <span className="text-[10px] font-black text-[#94A3B8] bg-[#F1F5F9] px-2 py-0.5 rounded-md uppercase">
-                                                                        {course.days_remaining} Days Left
-                                                                    </span>
+                                                                    <div className="flex flex-col items-end">
+                                                                        <span className="text-[10px] font-black text-[#94A3B8] bg-[#F1F5F9] px-2 py-0.5 rounded-md uppercase">
+                                                                            {course.days_remaining} Days Left
+                                                                        </span>
+                                                                        <span className="text-[9px] text-[#94A3B8] mt-1">Exp: {course.expiry_date?.split('T')[0]}</span>
+                                                                    </div>
                                                                 </div>
                                                                 <div className="flex items-center gap-4">
                                                                     <div className="flex-1 h-1.5 bg-[#F1F5F9] rounded-full overflow-hidden">
@@ -1152,13 +1155,17 @@ const ManageStudents = () => {
                                                 <div className="bg-[#F8FAFC] rounded-xl p-3 border border-[#F1F5F9]">
                                                     <p className="text-[9px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Student Answer</p>
                                                     <p className={`text-sm font-bold ${q.correct ? 'text-green-600' : 'text-red-500'}`}>
-                                                        {q.student_answer_text || q.student_option_id || 'No Answer'}
+                                                        <span className={`font-black ${q.correct ? 'text-emerald-700' : 'text-red-500'}`}>
+                                                            {q.student_answer_text || q.studentAnswerText || (q.student_option_id || q.studentOptionId ? `ID: ${q.student_option_id || q.studentOptionId}` : 'No Answer')}
+                                                        </span>
                                                     </p>
                                                 </div>
                                                 <div className="bg-green-50 rounded-xl p-3 border border-green-100">
                                                     <p className="text-[9px] font-black text-green-600 uppercase tracking-widest mb-1">Correct Answer</p>
                                                     <p className="text-sm font-bold text-green-700">
-                                                        {q.correct_option_text || q.correct_option_id || 'N/A'}
+                                                        <span className="font-black text-emerald-700">
+                                                            {q.correct_option_text || q.correctOptionText || (q.correct_option_id || q.correctOptionId ? `ID: ${q.correct_option_id || q.correctOptionId}` : 'N/A')}
+                                                        </span>
                                                     </p>
                                                 </div>
                                             </div>
