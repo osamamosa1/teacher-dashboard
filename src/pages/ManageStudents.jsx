@@ -263,6 +263,18 @@ const ManageStudents = () => {
         }
     };
 
+    const handleResetDevice = async (studentId) => {
+        if (!window.confirm('Are you sure you want to reset this student\'s registered device? They will be able to log in from a new device.')) return;
+        try {
+            await api.post(`/teacher/students/${studentId}/reset-device`);
+            alert('Device reset successfully.');
+            setProfileModalOpen(false);
+            fetchInitialData();
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to reset device.');
+        }
+    };
+
     const handleViewStudents = (course, e) => {
         if (e) e.stopPropagation();
         navigate(`/teacher/students?courseId=${course.id}`);
@@ -1039,6 +1051,12 @@ const ManageStudents = () => {
                                             className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-indigo-100 transition-colors"
                                         >
                                             Edit Profile
+                                        </button>
+                                        <button 
+                                            onClick={() => handleResetDevice(selectedStudentDetails.id)}
+                                            className="px-3 py-1 bg-red-50 text-red-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-red-100 transition-colors"
+                                        >
+                                            Reset Device
                                         </button>
                                         <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${selectedStudentDetails.activation_status ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
                                             {selectedStudentDetails.activation_status ? 'Active' : 'Deactivated'}
