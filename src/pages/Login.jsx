@@ -49,7 +49,23 @@ const Login = () => {
                 password
             });
 
-            const { token, user } = response.data.data;
+            const responseData = response.data.data;
+            const token = responseData.token;
+            
+            // Backend returns user either nested (responseData.user) or flat (responseData itself has role)
+            // Normalize to always have a flat user object with role guaranteed
+            const rawUser = responseData.user || responseData;
+            const user = {
+                id: rawUser.id,
+                name: rawUser.name,
+                email: rawUser.email,
+                phone: rawUser.phone,
+                role: rawUser.role,
+                profileImageUrl: rawUser.profileImageUrl || rawUser.profile_image_url,
+                tenantId: rawUser.tenantId || rawUser.tenant_id,
+                tenantName: rawUser.tenantName || rawUser.tenant_name,
+                activationStatus: rawUser.activationStatus !== undefined ? rawUser.activationStatus : rawUser.activation_status,
+            };
 
             localStorage.setItem("token", token);
             localStorage.setItem("user", JSON.stringify(user));

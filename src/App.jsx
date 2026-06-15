@@ -20,7 +20,9 @@ import Layout from './components/Layout';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const rawUser = JSON.parse(localStorage.getItem('user') || '{}');
+  // Handle nested user object from backend: { user: { role, ... } } or flat { role, ... }
+  const user = rawUser.user || rawUser;
 
   if (!token) return <Navigate to="/login" />;
   if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/login" />;
