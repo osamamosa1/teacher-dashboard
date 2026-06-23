@@ -1044,7 +1044,13 @@ const ManageStudents = () => {
                                 />
                                 <div>
                                     <h2 className="text-2xl font-black text-[#0F172A]">{selectedStudentDetails.name}</h2>
-                                    <p className="text-indigo-600 font-bold text-sm tracking-tight">{selectedStudentDetails.email}</p>
+                                    <div className="flex items-center gap-3">
+                                        <p className="text-indigo-600 font-bold text-sm tracking-tight">{selectedStudentDetails.email}</p>
+                                        <span className="px-2.5 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-full text-xs font-black flex items-center gap-1">
+                                            <Award size={12} className="fill-amber-400 text-amber-500" />
+                                            {selectedStudentDetails.total_points || 0} Points
+                                        </span>
+                                    </div>
                                     <div className="flex items-center gap-2 mt-2">
                                         <button 
                                             onClick={() => handleEditStudent(selectedStudentDetails)}
@@ -1103,9 +1109,9 @@ const ManageStudents = () => {
                                 <Award size={16} className="text-indigo-600" />
                                 Submitted Exams & Quizzes
                             </p>
-                            <div className="max-h-[300px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                            <div className="max-h-[220px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
                                 {selectedStudentDetails.submissions?.length === 0 ? (
-                                    <div className="bg-[#F8FAFC] rounded-2xl p-8 text-center border-2 border-dashed border-[#E2E8F0]">
+                                    <div className="bg-[#F8FAFC] rounded-2xl p-6 text-center border-2 border-dashed border-[#E2E8F0]">
                                         <p className="text-[#94A3B8] font-bold">No exam submissions found.</p>
                                     </div>
                                 ) : (
@@ -1116,12 +1122,12 @@ const ManageStudents = () => {
                                             onClick={() => fetchSubmissionDetails(sub.id)}
                                         >
                                             <div className="flex items-center gap-4">
-                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${sub.exam_type === 'course' ? 'bg-indigo-50 text-indigo-600' : 'bg-purple-50 text-purple-600'}`}>
+                                                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-600">
                                                     <BookOpen size={18} />
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-black text-[#0F172A] group-hover:text-indigo-600 transition-colors">
-                                                        Exam #{sub.exam_id} ({sub.exam_type})
+                                                        {sub.course_title || `Exam #${sub.exam_id}`}
                                                     </p>
                                                     <p className="text-[10px] font-bold text-[#94A3B8] mt-0.5">
                                                         {new Date(sub.submitted_at).toLocaleDateString()} at {new Date(sub.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -1133,6 +1139,49 @@ const ManageStudents = () => {
                                                     {sub.score} / {sub.total_mark}
                                                 </p>
                                                 <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mt-0.5">Score</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="mt-6">
+                            <p className="text-xs font-black text-[#0F172A] uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <Award size={16} className="text-amber-500" />
+                                Points History & Breakdown
+                            </p>
+                            <div className="max-h-[220px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                                {!selectedStudentDetails.points_breakdown || selectedStudentDetails.points_breakdown.length === 0 ? (
+                                    <div className="bg-[#F8FAFC] rounded-2xl p-6 text-center border-2 border-dashed border-[#E2E8F0]">
+                                        <p className="text-[#94A3B8] font-bold">No points earned yet.</p>
+                                    </div>
+                                ) : (
+                                    selectedStudentDetails.points_breakdown.map(p => (
+                                        <div 
+                                            key={p.id}
+                                            className="bg-white p-4 rounded-2xl border border-[#E2E8F0] flex items-center justify-between"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${p.type === 'exam' ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'}`}>
+                                                    {p.type === 'exam' ? <Award size={18} /> : <BookOpen size={18} />}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black text-[#0F172A]">
+                                                        {p.description}
+                                                    </p>
+                                                    <p className="text-[10px] font-bold text-[#94A3B8] mt-0.5">
+                                                        {new Date(p.created_at).toLocaleDateString()} at {new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-sm font-black text-amber-600">
+                                                    +{p.points} Pts
+                                                </p>
+                                                <span className="text-[9px] font-bold text-[#94A3B8] bg-[#F1F5F9] px-2 py-0.5 rounded uppercase">
+                                                    {p.type}
+                                                </span>
                                             </div>
                                         </div>
                                     ))

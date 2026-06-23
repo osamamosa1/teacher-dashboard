@@ -73,7 +73,7 @@ textarea:focus {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  z-index: 100;
+  z-index: 1000;
   padding: 24px 16px;
   transition: transform 0.3s ease;
 }

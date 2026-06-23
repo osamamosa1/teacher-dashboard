@@ -5,7 +5,7 @@ import {
     ChevronLeft, Loader2, PlayCircle, Plus, Layout, Video, FileText,
     CheckCircle, HelpCircle, Award, Clock, Trash2, Edit2,
     List as ListIcon, Layers, Settings, Users, ArrowLeft,
-    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown
+    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy
 } from 'lucide-react';
 
 const CourseCurriculum = () => {
@@ -40,6 +40,21 @@ const CourseCurriculum = () => {
     const [loadingResult, setLoadingResult] = useState(false);
     const [resultModalOpen, setResultModalOpen] = useState(false);
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+
+    // ── Copy Unit state ──────────────────────────────────────────────────────
+    const [copyUnitModalOpen, setCopyUnitModalOpen] = useState(false);
+    const [copyUnitSource, setCopyUnitSource] = useState(null); // { id, title }
+    const [myCourses, setMyCourses] = useState([]);
+    const [copyUnitSaving, setCopyUnitSaving] = useState(false);
+
+    // ── Copy Lesson state ────────────────────────────────────────────────────
+    const [copyLessonModalOpen, setCopyLessonModalOpen] = useState(false);
+    const [copyLessonSource, setCopyLessonSource] = useState(null); // { id, title }
+    const [copyLessonStep, setCopyLessonStep] = useState('course'); // 'course' | 'unit'
+    const [copyLessonSelectedCourse, setCopyLessonSelectedCourse] = useState(null);
+    const [copyLessonUnits, setCopyLessonUnits] = useState([]);
+    const [copyLessonUnitsLoading, setCopyLessonUnitsLoading] = useState(false);
+    const [copyLessonSaving, setCopyLessonSaving] = useState(false);
 
     useEffect(() => {
         fetchCurriculum();
@@ -179,6 +194,73 @@ const CourseCurriculum = () => {
             setResultModalOpen(false);
         } finally {
             setLoadingResult(false);
+        }
+    };
+
+    // ── Fetch teacher's courses for copy modals ──────────────────────────────
+    const fetchMyCourses = async () => {
+        if (myCourses.length > 0) return; // cache
+        try {
+            const res = await api.get('/teacher/courses');
+            setMyCourses(res.data.data || []);
+        } catch (err) { console.error(err); }
+    };
+
+    // ── Open copy-unit modal ──────────────────────────────────────────────────
+    const openCopyUnit = async (unit) => {
+        setCopyUnitSource(unit);
+        await fetchMyCourses();
+        setCopyUnitModalOpen(true);
+    };
+
+    const handleCopyUnit = async (destCourseId) => {
+        setCopyUnitSaving(true);
+        try {
+            await api.post(`/teacher/units/${copyUnitSource.id}/copy`, { destination_course_id: destCourseId });
+            setCopyUnitModalOpen(false);
+            alert('تم نسخ الوحدة بنجاح!');
+        } catch (err) {
+            alert(err.response?.data?.message || 'فشل نسخ الوحدة');
+        } finally {
+            setCopyUnitSaving(false);
+        }
+    };
+
+    // ── Open copy-lesson modal ────────────────────────────────────────────────
+    const openCopyLesson = async (lesson) => {
+        setCopyLessonSource(lesson);
+        setCopyLessonStep('course');
+        setCopyLessonSelectedCourse(null);
+        setCopyLessonUnits([]);
+        await fetchMyCourses();
+        setCopyLessonModalOpen(true);
+    };
+
+    const handleCopyLessonSelectCourse = async (courseItem) => {
+        setCopyLessonSelectedCourse(courseItem);
+        setCopyLessonUnitsLoading(true);
+        setCopyLessonStep('unit');
+        try {
+            const res = await api.get(`/teacher/courses/${courseItem.id}/units`);
+            setCopyLessonUnits(res.data.data || []);
+        } catch (err) {
+            alert('فشل تحميل الوحدات');
+            setCopyLessonStep('course');
+        } finally {
+            setCopyLessonUnitsLoading(false);
+        }
+    };
+
+    const handleCopyLesson = async (destUnitId) => {
+        setCopyLessonSaving(true);
+        try {
+            await api.post(`/teacher/lessons/${copyLessonSource.id}/copy`, { destination_unit_id: destUnitId });
+            setCopyLessonModalOpen(false);
+            alert('تم نسخ الدرس بنجاح!');
+        } catch (err) {
+            alert(err.response?.data?.message || 'فشل نسخ الدرس');
+        } finally {
+            setCopyLessonSaving(false);
         }
     };
 
@@ -374,7 +456,14 @@ const CourseCurriculum = () => {
                                         <div className="col-span-3 flex items-center gap-2 text-sm text-[#0F172A] font-semibold">
                                             <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Published
                                         </div>
-                                        <div className="col-span-1 text-right flex justify-end gap-3">
+                                        <div className="col-span-1 text-right flex justify-end gap-2">
+                                            <button
+                                                onClick={() => openCopyLesson(lesson)}
+                                                title="نسخ الدرس إلى كورس آخر"
+                                                className="text-[#94A3B8] hover:text-indigo-600 transition-all"
+                                            >
+                                                <Copy size={16} />
+                                            </button>
                                             <Link
                                                 to={`/teacher/courses/${courseId}/lessons/${lesson.id}/edit`}
                                                 className="text-[#94A3B8] hover:text-[#0F172A] transition-all"
@@ -531,7 +620,14 @@ const CourseCurriculum = () => {
                                     <div className="col-span-8">
                                         <p className="font-extrabold text-[#0F172A] text-base">{unit.title}</p>
                                     </div>
-                                    <div className="col-span-3 text-right flex justify-end gap-3">
+                                    <div className="col-span-3 text-right flex justify-end gap-2">
+                                        <button
+                                            onClick={() => openCopyUnit(unit)}
+                                            title="نسخ الوحدة إلى كورس آخر"
+                                            className="text-[#94A3B8] hover:text-indigo-600 transition-all"
+                                        >
+                                            <Copy size={16} />
+                                        </button>
                                         <button onClick={() => { setCurrentUnit(unit); setUnitModalOpen(true); }} className="text-[#94A3B8] hover:text-[#0F172A] transition-all">
                                             <Edit2 size={18} />
                                         </button>
@@ -842,6 +938,182 @@ const CourseCurriculum = () => {
                     </div>
                 </div>
             )}
+
+            {/* ─── Copy Unit Modal ──────────────────────────────────────────── */}
+            {copyUnitModalOpen && (
+                <div className="fixed inset-0 lg:left-[260px] bg-[#0F172A]/50 backdrop-blur-sm flex items-center justify-center p-4 z-[200] animate-in fade-in duration-200">
+                    <div className="bg-white rounded-[28px] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="p-6 border-b border-[#F1F5F9] flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                                    <Copy size={18} className="text-indigo-600" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-extrabold text-[#0F172A] tracking-tight">نسخ الوحدة</h2>
+                                    <p className="text-xs text-[#64748B] font-semibold mt-0.5 truncate max-w-[220px]">{copyUnitSource?.title}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setCopyUnitModalOpen(false)} className="w-9 h-9 rounded-full bg-[#F1F5F9] flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0] hover:text-[#0F172A] transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Course List */}
+                        <div className="p-4 max-h-[380px] overflow-y-auto space-y-2">
+                            <p className="text-[11px] font-black text-[#94A3B8] uppercase tracking-widest px-2 mb-3">اختر الكورس المراد النسخ إليه</p>
+                            {myCourses.length === 0 ? (
+                                <div className="py-10 text-center">
+                                    <Loader2 className="animate-spin mx-auto text-indigo-400 mb-2" size={28} />
+                                    <p className="text-sm text-[#64748B] font-semibold">جاري التحميل...</p>
+                                </div>
+                            ) : (
+                                myCourses.map(c => (
+                                    <button
+                                        key={c.id}
+                                        disabled={copyUnitSaving}
+                                        onClick={() => handleCopyUnit(c.id)}
+                                        className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-[#E2E8F0] hover:border-indigo-300 hover:bg-indigo-50/60 transition-all text-left group disabled:opacity-50"
+                                    >
+                                        {copyUnitSaving ? (
+                                            <Loader2 size={16} className="animate-spin text-indigo-500 shrink-0" />
+                                        ) : (
+                                            <div className="w-7 h-7 rounded-lg bg-[#F1F5F9] group-hover:bg-indigo-100 flex items-center justify-center shrink-0 transition-colors">
+                                                <Layers size={14} className="text-[#64748B] group-hover:text-indigo-600 transition-colors" />
+                                            </div>
+                                        )}
+                                        <span className="font-bold text-[#0F172A] text-sm truncate">{c.title}</span>
+                                        <ChevronRight size={14} className="ml-auto text-[#94A3B8] group-hover:text-indigo-500 shrink-0 transition-colors" />
+                                    </button>
+                                ))
+                            )}
+                        </div>
+
+                        <div className="p-4 border-t border-[#F1F5F9] bg-[#F8FAFC]">
+                            <button onClick={() => setCopyUnitModalOpen(false)} className="w-full h-11 rounded-xl font-bold text-[#64748B] border border-[#E2E8F0] bg-white hover:bg-[#F1F5F9] transition-colors text-sm">
+                                إلغاء
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── Copy Lesson Modal ────────────────────────────────────────── */}
+            {copyLessonModalOpen && (
+                <div className="fixed inset-0 lg:left-[260px] bg-[#0F172A]/50 backdrop-blur-sm flex items-center justify-center p-4 z-[200] animate-in fade-in duration-200">
+                    <div className="bg-white rounded-[28px] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="p-6 border-b border-[#F1F5F9] flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                                    <Copy size={18} className="text-indigo-600" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-extrabold text-[#0F172A] tracking-tight">نسخ الدرس</h2>
+                                    <p className="text-xs text-[#64748B] font-semibold mt-0.5 truncate max-w-[220px]">{copyLessonSource?.title}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setCopyLessonModalOpen(false)} className="w-9 h-9 rounded-full bg-[#F1F5F9] flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0] hover:text-[#0F172A] transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Step Indicator */}
+                        <div className="px-6 pt-4 flex items-center gap-2">
+                            <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest transition-colors ${copyLessonStep === 'course' ? 'text-indigo-600' : 'text-[#94A3B8]'}`}>
+                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black transition-colors ${copyLessonStep === 'course' ? 'bg-indigo-600 text-white' : 'bg-green-500 text-white'}`}>
+                                    {copyLessonStep === 'course' ? '1' : <CheckCircle size={12} />}
+                                </div>
+                                الكورس
+                            </div>
+                            <ChevronRight size={12} className="text-[#CBD5E1]" />
+                            <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest transition-colors ${copyLessonStep === 'unit' ? 'text-indigo-600' : 'text-[#94A3B8]'}`}>
+                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black transition-colors ${copyLessonStep === 'unit' ? 'bg-indigo-600 text-white' : 'bg-[#E2E8F0] text-[#94A3B8]'}`}>2</div>
+                                الوحدة
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-4 max-h-[340px] overflow-y-auto space-y-2">
+                            {copyLessonStep === 'course' ? (
+                                <>
+                                    <p className="text-[11px] font-black text-[#94A3B8] uppercase tracking-widest px-2 mb-3">اختر الكورس</p>
+                                    {myCourses.length === 0 ? (
+                                        <div className="py-10 text-center">
+                                            <Loader2 className="animate-spin mx-auto text-indigo-400 mb-2" size={28} />
+                                        </div>
+                                    ) : (
+                                        myCourses.map(c => (
+                                            <button
+                                                key={c.id}
+                                                onClick={() => handleCopyLessonSelectCourse(c)}
+                                                className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-[#E2E8F0] hover:border-indigo-300 hover:bg-indigo-50/60 transition-all text-left group"
+                                            >
+                                                <div className="w-7 h-7 rounded-lg bg-[#F1F5F9] group-hover:bg-indigo-100 flex items-center justify-center shrink-0 transition-colors">
+                                                    <Layers size={14} className="text-[#64748B] group-hover:text-indigo-600 transition-colors" />
+                                                </div>
+                                                <span className="font-bold text-[#0F172A] text-sm truncate">{c.title}</span>
+                                                <ChevronRight size={14} className="ml-auto text-[#94A3B8] group-hover:text-indigo-500 shrink-0 transition-colors" />
+                                            </button>
+                                        ))
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <div className="flex items-center gap-2 mb-3 px-2">
+                                        <button
+                                            onClick={() => { setCopyLessonStep('course'); setCopyLessonSelectedCourse(null); }}
+                                            className="flex items-center gap-1 text-[11px] font-black text-indigo-500 hover:text-indigo-700 uppercase tracking-widest transition-colors"
+                                        >
+                                            <ChevronLeft size={12} /> رجوع
+                                        </button>
+                                        <span className="text-[11px] font-black text-[#94A3B8] uppercase tracking-widest truncate">
+                                            الوحدات في: {copyLessonSelectedCourse?.title}
+                                        </span>
+                                    </div>
+                                    {copyLessonUnitsLoading ? (
+                                        <div className="py-10 text-center">
+                                            <Loader2 className="animate-spin mx-auto text-indigo-400 mb-2" size={28} />
+                                            <p className="text-sm text-[#64748B] font-semibold">جاري تحميل الوحدات...</p>
+                                        </div>
+                                    ) : copyLessonUnits.length === 0 ? (
+                                        <div className="py-10 text-center">
+                                            <p className="text-sm font-bold text-[#0F172A]">لا توجد وحدات في هذا الكورس</p>
+                                            <p className="text-xs text-[#94A3B8] mt-1">قم بإضافة وحدات أولاً</p>
+                                        </div>
+                                    ) : (
+                                        copyLessonUnits.sort((a,b) => a.sort_order - b.sort_order).map(u => (
+                                            <button
+                                                key={u.id}
+                                                disabled={copyLessonSaving}
+                                                onClick={() => handleCopyLesson(u.id)}
+                                                className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-[#E2E8F0] hover:border-indigo-300 hover:bg-indigo-50/60 transition-all text-left group disabled:opacity-50"
+                                            >
+                                                {copyLessonSaving ? (
+                                                    <Loader2 size={16} className="animate-spin text-indigo-500 shrink-0" />
+                                                ) : (
+                                                    <div className="w-6 h-6 rounded-lg bg-[#F1F5F9] group-hover:bg-indigo-100 flex items-center justify-center shrink-0 transition-colors text-[10px] font-black text-[#64748B] group-hover:text-indigo-600">
+                                                        {u.sort_order}
+                                                    </div>
+                                                )}
+                                                <span className="font-bold text-[#0F172A] text-sm truncate">{u.title}</span>
+                                                <CheckCircle size={14} className="ml-auto text-[#E2E8F0] group-hover:text-indigo-500 shrink-0 transition-colors" />
+                                            </button>
+                                        ))
+                                    )}
+                                </>
+                            )}
+                        </div>
+
+                        <div className="p-4 border-t border-[#F1F5F9] bg-[#F8FAFC]">
+                            <button onClick={() => setCopyLessonModalOpen(false)} className="w-full h-11 rounded-xl font-bold text-[#64748B] border border-[#E2E8F0] bg-white hover:bg-[#F1F5F9] transition-colors text-sm">
+                                إلغاء
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 };

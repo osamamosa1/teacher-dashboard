@@ -392,7 +392,7 @@ const LessonForm = () => {
                                         <h4 className="text-sm font-bold text-[#0F172A]">Exam Settings</h4>
                                         <p className="text-xs text-[#64748B] leading-relaxed">Configure grading and time limits.</p>
                                     </div>
-                                    <div className="col-span-2 grid grid-cols-3 gap-4">
+                                     <div className="col-span-2 grid grid-cols-3 gap-4">
                                         <div>
                                             <label className="text-xs font-bold text-[#64748B] mb-1.5 block">Time Limit (mins)</label>
                                             <input type="number" className="input-field text-lg font-bold" value={newLesson.exam.duration} onChange={e => setNewLesson({ ...newLesson, exam: { ...newLesson.exam, duration: parseInt(e.target.value) || 0 } })} />
@@ -402,8 +402,10 @@ const LessonForm = () => {
                                             <input type="number" className="input-field text-lg font-bold" value={newLesson.exam.total_mark} onChange={e => setNewLesson({ ...newLesson, exam: { ...newLesson.exam, total_mark: parseInt(e.target.value) || 0 } })} />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-bold text-[#64748B] mb-1.5 block">Passing Grade %</label>
-                                            <input type="number" className="input-field text-lg font-bold text-indigo-600" value={newLesson.exam.passing_grade} onChange={e => setNewLesson({ ...newLesson, exam: { ...newLesson.exam, passing_grade: parseInt(e.target.value) || 0 } })} />
+                                            <label className="text-xs font-bold text-[#64748B] mb-1.5 block">Passing Score (Auto)</label>
+                                            <div className="input-field text-lg font-bold text-indigo-600 bg-indigo-50 cursor-default select-none">
+                                                {Math.round((newLesson.exam.total_mark || 0) * 0.5)} pts
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

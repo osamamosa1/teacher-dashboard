@@ -34,7 +34,6 @@ const CurrentExams = () => {
         title: '',
         description: '',
         duration: 30,
-        passingScore: 0,
         startDate: '',
         endDate: '',
         gradeId: '',
@@ -120,7 +119,6 @@ const CurrentExams = () => {
                 title: form.title,
                 description: form.description,
                 duration: parseInt(form.duration),
-                passing_score: parseInt(form.passingScore),
                 start_date: form.startDate,
                 end_date: form.endDate,
                 grade_id: form.gradeId ? parseInt(form.gradeId) : null,
@@ -147,7 +145,7 @@ const CurrentExams = () => {
             setShowForm(false);
             setEditId(null);
             fetchData();
-            setForm({ title: '', description: '', duration: 30, passingScore: 0, startDate: '', endDate: '', gradeId: '', subjectId: '', questions: [emptyQuestion()] });
+            setForm({ title: '', description: '', duration: 30, startDate: '', endDate: '', gradeId: '', subjectId: '', questions: [emptyQuestion()] });
         } catch (err) {
             showToast(err?.response?.data?.message || 'Failed to save exam', 'error');
         } finally {
@@ -160,7 +158,6 @@ const CurrentExams = () => {
             title: exam.title || '',
             description: exam.description || '',
             duration: exam.duration || 30,
-            passingScore: exam.passingScore || 0,
             startDate: exam.startDate ? exam.startDate.slice(0, 16) : '',
             endDate: exam.endDate ? exam.endDate.slice(0, 16) : '',
             gradeId: exam.grade?.id || '',
@@ -328,15 +325,10 @@ const CurrentExams = () => {
                                         className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-200 outline-none resize-none" />
                                 </div>
 
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                     <div>
                                         <label className="text-xs font-bold text-[#64748B] mb-1 block">Duration (min)</label>
                                         <input type="number" min="1" value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))}
-                                            className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-200" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-[#64748B] mb-1 block">Passing Score</label>
-                                        <input type="number" min="0" max={totalMark} value={form.passingScore} onChange={e => setForm(f => ({ ...f, passingScore: e.target.value }))}
                                             className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-200" />
                                     </div>
                                     <div>
@@ -372,7 +364,9 @@ const CurrentExams = () => {
 
                                 <div className="flex items-center justify-between bg-indigo-50 rounded-xl px-4 py-3">
                                     <span className="text-sm font-bold text-indigo-800">Total Mark: {totalMark} pts</span>
-                                    <span className="text-xs text-indigo-600">{form.questions.length} question(s)</span>
+                                    <span className="text-xs text-indigo-600">
+                                        Auto Passing Score: <strong>{Math.round(totalMark * 0.5)}</strong> pts (50%) · {form.questions.length} question(s)
+                                    </span>
                                 </div>
                             </div>
 
