@@ -15,6 +15,8 @@ const Layout = ({ children }) => {
     const rawUser = JSON.parse(localStorage.getItem('user') || '{}');
     const user = rawUser.user || rawUser; // Handle nested user object
     const isAdmin = user.role === 'admin';
+    const isImpersonating = !!localStorage.getItem('impersonation_admin_token');
+    const impersonatedTeacherName = localStorage.getItem('impersonation_teacher_name') || user.name;
 
     useEffect(() => {
         fetchSettings();
@@ -30,8 +32,22 @@ const Layout = ({ children }) => {
     };
 
     const handleLogout = () => {
+        localStorage.removeItem('impersonation_admin_token');
+        localStorage.removeItem('impersonation_admin_user');
+        localStorage.removeItem('impersonation_teacher_name');
         localStorage.clear();
         navigate('/login');
+    };
+
+    const exitImpersonation = () => {
+        const adminToken = localStorage.getItem('impersonation_admin_token');
+        const adminUser = localStorage.getItem('impersonation_admin_user');
+        if (adminToken) localStorage.setItem('token', adminToken);
+        if (adminUser) localStorage.setItem('user', adminUser);
+        localStorage.removeItem('impersonation_admin_token');
+        localStorage.removeItem('impersonation_admin_user');
+        localStorage.removeItem('impersonation_teacher_name');
+        navigate('/admin/teachers');
     };
 
     // Close sidebar on navigation (mobile)
@@ -109,9 +125,15 @@ const Layout = ({ children }) => {
                         </>
                     )}
 
-                    <NavLink to="/profile" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-                        <Settings size={20} /> <span className="nav-text">Profile</span>
-                    </NavLink>
+                    {isAdmin ? (
+                        <NavLink to="/admin/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                            <Settings size={20} /> <span className="nav-text">Platform Settings</span>
+                        </NavLink>
+                    ) : (
+                        <NavLink to="/profile" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                            <Settings size={20} /> <span className="nav-text">Profile</span>
+                        </NavLink>
+                    )}
                 </nav>
 
                 <div className="mt-auto pt-6">
@@ -156,13 +178,36 @@ const Layout = ({ children }) => {
                         </button>
                         <div className="h-10 w-[1px] bg-[#E2E8F0] hidden sm:block" />
                         <div className="flex items-center gap-3 shrink-0">
-                            <img src={user.profile_image_url || `https://ui-avatars.com/api/?name=${user.name || 'User'}&background=random`} className="avatar-img" alt="" />
+                            {isAdmin ? (
+                                <div className="w-10 h-10 rounded-full overflow-hidden border border-[#E2E8F0] bg-white flex items-center justify-center">
+                                    {settings?.logo_url ? (
+                                        <img src={settings.logo_url} className="w-full h-full object-contain p-1" alt="Platform logo" />
+                                    ) : (
+                                        <Grid className="text-indigo-900" size={20} />
+                                    )}
+                                </div>
+                            ) : (
+                                <img src={user.profile_image_url || `https://ui-avatars.com/api/?name=${user.name || 'User'}&background=random`} className="avatar-img" alt="" />
+                            )}
                         </div>
                     </div>
                 </header>
 
                 {/* Content Area */}
                 <main className="main-content flex-1 overflow-y-auto lg:!ml-[260px]">
+                    {isImpersonating && (
+                        <div className="bg-amber-50 border-b border-amber-200 px-4 lg:px-10 py-3 flex flex-wrap items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-amber-900">
+                                Viewing dashboard as <span className="font-bold">{impersonatedTeacherName}</span>
+                            </p>
+                            <button
+                                onClick={exitImpersonation}
+                                className="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-bold hover:bg-amber-700 transition-colors"
+                            >
+                                Exit to Admin
+                            </button>
+                        </div>
+                    )}
                     <div className="max-w-[1400px] mx-auto animate-fade">
                         {children}
                     </div>

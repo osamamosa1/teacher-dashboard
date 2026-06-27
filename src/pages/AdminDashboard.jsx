@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, BookOpen, GraduationCap, TrendingUp, Plus, Settings, Loader2 } from 'lucide-react';
+import { Users, BookOpen, GraduationCap, Plus, Settings, Loader2, Layers } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
 
@@ -22,10 +22,10 @@ const AdminDashboard = () => {
     }, []);
 
     const stats = [
-        { label: 'Active Teachers', value: statsData?.activeTeachers ?? '0', icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-        { label: 'Total Content', value: statsData?.totalContent ?? '0', icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
-        { label: 'Enrollments', value: statsData?.enrollments ?? '0', icon: GraduationCap, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-        { label: 'Growth', value: statsData?.growth ?? '+0.0%', icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
+        { label: 'Active Teachers', value: statsData?.active_teachers ?? '0', icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+        { label: 'Total Courses', value: statsData?.total_courses ?? '0', icon: Layers, color: 'text-violet-600', bg: 'bg-violet-50' },
+        { label: 'Total Lessons', value: statsData?.total_content ?? '0', icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
+        { label: 'Enrolled Students', value: statsData?.enrolled_students ?? '0', icon: GraduationCap, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     ];
 
     if (loading) {
@@ -71,36 +71,16 @@ const AdminDashboard = () => {
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 bg-white rounded-[24px] border border-[#E2E8F0] shadow-sm p-8 h-[400px] flex flex-col justify-between">
-                    <div className="flex justify-between items-center mb-4 border-b border-[#F1F5F9] pb-4">
-                        <h3 className="text-xl font-bold text-[#0F172A]">Registration Trends</h3>
-                        <span className="text-xs font-bold text-[#64748B] bg-[#F1F5F9] px-3 py-1 rounded-md uppercase tracking-wider">Monthly View</span>
-                    </div>
-                    <div className="flex-1 flex items-center justify-center">
-                        <div className="text-center">
-                            <TrendingUp className="mx-auto w-12 h-12 text-[#94A3B8] mb-3 opacity-50" />
-                            <p className="text-[#64748B] font-medium">Visualization Chart Data loading...</p>
-                        </div>
-                    </div>
+            {statsData?.total_students != null && (
+                <div className="bg-white rounded-[24px] border border-[#E2E8F0] shadow-sm p-6">
+                    <p className="text-sm text-[#64748B]">
+                        Total registered students: <span className="font-bold text-[#0F172A]">{statsData.total_students}</span>
+                        {statsData.assigned_students > 0 && (
+                            <> · Assigned to teachers: <span className="font-bold text-[#0F172A]">{statsData.assigned_students}</span></>
+                        )}
+                    </p>
                 </div>
-
-                <div className="bg-white rounded-[24px] border border-[#E2E8F0] shadow-sm p-8 h-[400px] flex flex-col">
-                    <h3 className="text-xl font-bold text-[#0F172A] mb-6 border-b border-[#F1F5F9] pb-4">Recent Alerts</h3>
-                    <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-                        {[1, 2, 3, 4].map(idx => (
-                            <div key={idx} className="flex gap-4 p-4 bg-[#F8FAFC]/50 hover:bg-[#F1F5F9] rounded-xl border border-[#E2E8F0] transition-colors cursor-pointer">
-                                <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 mt-1.5 flex-shrink-0" />
-                                <div>
-                                    <p className="text-sm font-bold text-[#0F172A]">New teacher registration</p>
-                                    <p className="text-xs text-[#64748B] mt-1 font-medium">{idx} hour{idx > 1 ? 's' : ''} ago</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <button className="text-indigo-600 text-sm font-bold mt-4 pt-4 border-t border-[#F1F5F9] hover:text-indigo-800 transition-colors text-center w-full">View All Notifications</button>
-                </div>
-            </div>
+            )}
         </div>
     );
 };

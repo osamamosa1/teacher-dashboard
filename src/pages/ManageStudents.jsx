@@ -220,10 +220,16 @@ const ManageStudents = () => {
         }
     };
 
-    const fetchSubmissionDetails = async (subId) => {
+    const fetchSubmissionDetails = async (sub) => {
+        if (sub.submission_type === 'assignment') {
+            if (sub.submission_url) {
+                window.open(sub.submission_url, '_blank', 'noopener,noreferrer');
+            }
+            return;
+        }
         setFetchingSub(true);
         try {
-            const res = await api.get(`/student/standalone-exams/results/${subId}`);
+            const res = await api.get(`/student/standalone-exams/results/${sub.id}`);
             setSelectedSubmission(res.data.data);
         } catch (err) {
             alert('Failed to fetch result details.');
@@ -1107,7 +1113,7 @@ const ManageStudents = () => {
                         <div>
                             <p className="text-xs font-black text-[#0F172A] uppercase tracking-widest mb-4 flex items-center gap-2">
                                 <Award size={16} className="text-indigo-600" />
-                                Submitted Exams & Quizzes
+                                Submitted Exams, Quizzes & Assignments
                             </p>
                             <div className="max-h-[220px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
                                 {selectedStudentDetails.submissions?.length === 0 ? (
@@ -1117,12 +1123,12 @@ const ManageStudents = () => {
                                 ) : (
                                     selectedStudentDetails.submissions.map(sub => (
                                         <div 
-                                            key={`${sub.exam_type}-${sub.id}`}
+                                            key={`${sub.submission_type || 'exam'}-${sub.id}`}
                                             className="group bg-white p-4 rounded-2xl border border-[#E2E8F0] hover:border-indigo-200 hover:shadow-md hover:shadow-indigo-500/5 transition-all flex items-center justify-between cursor-pointer"
-                                            onClick={() => fetchSubmissionDetails(sub.id)}
+                                            onClick={() => fetchSubmissionDetails(sub)}
                                         >
                                             <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-600">
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${sub.submission_type === 'assignment' ? 'bg-amber-50 text-amber-600' : 'bg-indigo-50 text-indigo-600'}`}>
                                                     <BookOpen size={18} />
                                                 </div>
                                                 <div>
@@ -1130,15 +1136,21 @@ const ManageStudents = () => {
                                                         {sub.course_title || `Exam #${sub.exam_id}`}
                                                     </p>
                                                     <p className="text-[10px] font-bold text-[#94A3B8] mt-0.5">
-                                                        {new Date(sub.submitted_at).toLocaleDateString()} at {new Date(sub.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        {sub.submission_type === 'assignment' ? 'Assignment link' : 'Exam score'} · {new Date(sub.submitted_at).toLocaleDateString()} at {new Date(sub.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <p className={`text-sm font-black ${sub.score >= sub.total_mark / 2 ? 'text-green-600' : 'text-red-500'}`}>
-                                                    {sub.score} / {sub.total_mark}
-                                                </p>
-                                                <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mt-0.5">Score</p>
+                                                {sub.submission_type === 'assignment' ? (
+                                                    <p className="text-xs font-black text-amber-600 uppercase tracking-widest">Open Link</p>
+                                                ) : (
+                                                    <>
+                                                        <p className={`text-sm font-black ${sub.score >= sub.total_mark / 2 ? 'text-green-600' : 'text-red-500'}`}>
+                                                            {sub.score} / {sub.total_mark}
+                                                        </p>
+                                                        <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mt-0.5">Score</p>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     ))

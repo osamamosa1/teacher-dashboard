@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Save, Upload, CheckCircle, AlertCircle, Globe, Image as ImageIcon, MessageSquare, Phone } from 'lucide-react';
+import { Settings, Save, Upload, CheckCircle, AlertCircle, Globe, Image as ImageIcon, MessageSquare, Phone, Trophy } from 'lucide-react';
 import api from '../api/axios';
 
 const AdminSettings = () => {
@@ -15,6 +15,7 @@ const AdminSettings = () => {
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [toast, setToast] = useState(null);
+    const [resettingPoints, setResettingPoints] = useState(false);
 
     useEffect(() => {
         fetchSettings();
@@ -67,6 +68,23 @@ const AdminSettings = () => {
             showToast('Failed to save settings', 'error');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleResetPoints = async () => {
+        const confirmed = window.confirm(
+            'This will delete ALL student points on the platform. Leaderboards will start from zero. Continue?'
+        );
+        if (!confirmed) return;
+        setResettingPoints(true);
+        try {
+            const res = await api.post('/admin/points/reset');
+            const count = res.data?.deleted_count ?? res.deleted_count ?? 0;
+            showToast(`All points cleared (${count} records removed)`);
+        } catch (err) {
+            showToast('Failed to reset points', 'error');
+        } finally {
+            setResettingPoints(false);
         }
     };
 
@@ -208,6 +226,29 @@ const AdminSettings = () => {
                             onChange={e => setSettings({...settings, global_announcement: e.target.value})}
                             placeholder="e.g., New courses have been added for the final exams review!"
                         />
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-[32px] border border-red-100 shadow-sm overflow-hidden">
+                    <div className="p-8 border-b border-red-50 bg-red-50/40 flex items-center gap-3">
+                        <Trophy className="text-red-600" size={24} />
+                        <div>
+                            <h2 className="text-xl font-bold text-[#0F172A]">Leaderboard & Points</h2>
+                            <p className="text-sm text-[#64748B] mt-1">Reset all student points so scoring starts fresh from now.</p>
+                        </div>
+                    </div>
+                    <div className="p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <p className="text-sm text-[#64748B] max-w-xl">
+                            This removes every video and exam point record. Students keep their accounts and courses; only the points leaderboard is cleared.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={handleResetPoints}
+                            disabled={resettingPoints}
+                            className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
+                        >
+                            {resettingPoints ? 'Clearing…' : 'Reset All Points'}
+                        </button>
                     </div>
                 </div>
 

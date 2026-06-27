@@ -75,39 +75,26 @@ const LessonForm = () => {
     };
 
     const handlePdfUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        if (file.type !== 'application/pdf') {
-            alert('Security Error: Only PDF files are allowed for students.');
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('file', file);
-
-        setSaving(true);
-        try {
-            // Health check to new dedicated controller
-            const ping = await api.get('/uploads/ping');
-            console.log('Upload Health Check:', ping.data);
-
-            const res = await api.post('/uploads/pdf', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-            console.log('PDF Uploaded Successfully:', res.data.url);
-            setNewLesson({ ...newLesson, extra: res.data.url });
-        } catch (err) {
-            console.error('PDF Upload Failed!', {
-                error: err,
-                response: err.response?.data,
-                status: err.response?.status
-            });
-            alert(`Failed to upload PDF: ${err.response?.data?.message || err.message}`);
-        } finally {
-            setSaving(false);
-        }
+        // Deprecated: documents and assignments now use link fields in `extra`.
     };
+
+    const renderResourceLinkField = (title, placeholder) => (
+        <div className="pt-4 border-t border-[#F1F5F9]">
+            <h4 className="text-sm font-bold text-[#0F172A] mb-2 flex items-center gap-2">
+                <FileText size={16} className="text-indigo-600" /> {title}
+            </h4>
+            <input
+                type="url"
+                className="input-field"
+                placeholder={placeholder}
+                value={newLesson.extra}
+                onChange={e => setNewLesson({ ...newLesson, extra: e.target.value })}
+            />
+            <p className="text-[11px] text-[#94A3B8] mt-2 font-medium">
+                Paste a share link (Google Drive, Dropbox, OneDrive, etc.). Students will view it inside the app/site.
+            </p>
+        </div>
+    );
 
     const handleSaveLesson = async (e) => {
         e.preventDefault();
@@ -325,22 +312,7 @@ const LessonForm = () => {
                             <div className="grid grid-cols-3 gap-10 items-start animate-in fade-in slide-in-from-bottom-2">
                                 <div className="col-span-2 space-y-4">
                                     <textarea className="input-field h-48 resize-none py-3" placeholder="Enter text content here..." value={newLesson.content} onChange={e => setNewLesson({ ...newLesson, content: e.target.value })}></textarea>
-                                    
-                                    <div className="pt-4 border-t border-[#F1F5F9]">
-                                        <h4 className="text-sm font-bold text-[#0F172A] mb-2 flex items-center gap-2"><FileText size={16} className="text-indigo-600"/> Attach PDF (Optional)</h4>
-                                        <div className="flex gap-3 items-center">
-                                            <label className="px-4 py-2.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl flex items-center justify-center gap-2 cursor-pointer font-bold text-xs transition-colors">
-                                                <Plus size={14} /> {newLesson.extra ? 'Change PDF' : 'Upload PDF'}
-                                                <input type="file" className="hidden" accept=".pdf" onChange={handlePdfUpload} />
-                                            </label>
-                                            {newLesson.extra && (
-                                                <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-bold">
-                                                    <CheckCircle size={12} /> Document Attached
-                                                    <button type="button" onClick={() => setNewLesson({...newLesson, extra: ''})} className="text-red-500 hover:text-red-700 ml-1"><X size={12}/></button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
+                                    {renderResourceLinkField('Document Link (Optional)', 'https://drive.google.com/file/d/...')}
                                 </div>
                             </div>
                         )}
@@ -354,22 +326,7 @@ const LessonForm = () => {
                                     </div>
                                     <div className="col-span-2 space-y-4">
                                         <textarea className="input-field h-32 resize-none py-3" placeholder="Explain the assignment..." value={newLesson.assignment.description} onChange={e => setNewLesson({ ...newLesson, assignment: { ...newLesson.assignment, description: e.target.value } })}></textarea>
-                                        
-                                        <div className="pt-4 border-t border-[#F1F5F9]">
-                                            <h4 className="text-sm font-bold text-[#0F172A] mb-2 flex items-center gap-2"><FileText size={16} className="text-indigo-600"/> Resource PDF (Optional)</h4>
-                                            <div className="flex gap-3 items-center">
-                                                <label className="px-4 py-2.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl flex items-center justify-center gap-2 cursor-pointer font-bold text-xs transition-colors">
-                                                    <Plus size={14} /> {newLesson.extra ? 'Change PDF' : 'Upload PDF'}
-                                                    <input type="file" className="hidden" accept=".pdf" onChange={handlePdfUpload} />
-                                                </label>
-                                                {newLesson.extra && (
-                                                    <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-bold">
-                                                        <CheckCircle size={12} /> Resource Attached
-                                                        <button type="button" onClick={() => setNewLesson({...newLesson, extra: ''})} className="text-red-500 hover:text-red-700 ml-1"><X size={12}/></button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
+                                        {renderResourceLinkField('Resource Link (Optional)', 'https://drive.google.com/file/d/...')}
                                     </div>
                                 </div>
 

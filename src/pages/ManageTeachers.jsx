@@ -1,25 +1,30 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
-import { Award, Tags, Plus, UserPlus, Trash2, X, Shield, Phone, Mail, BookOpen, Layers, Loader2, Users, Edit } from 'lucide-react';
+import { UserPlus, Trash2, X, Loader2, Users, Edit, Eye } from 'lucide-react';
+
+const emptyTeacher = {
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    main_subject: '',
+    profile_image_url: '',
+    address: '',
+    date_of_birth: '',
+    notes: ''
+};
 
 const ManageTeachers = () => {
+    const navigate = useNavigate();
     const [teachers, setTeachers] = useState([]);
     const [subjects, setSubjects] = useState([]);
-    const [grades, setGrades] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
-    const [newTeacher, setNewTeacher] = useState({ 
-        name: '', 
-        email: '', 
-        phone: '', 
-        password: '', 
-        main_subject: '', 
-        profile_image_url: '',
-        address: '',
-        date_of_birth: '',
-        notes: ''
-    });
+    const [editingTeacher, setEditingTeacher] = useState(null);
+    const [formData, setFormData] = useState(emptyTeacher);
     const [saving, setSaving] = useState(false);
+    const [impersonatingId, setImpersonatingId] = useState(null);
 
     useEffect(() => {
         fetchData();
@@ -27,14 +32,12 @@ const ManageTeachers = () => {
 
     const fetchData = async () => {
         try {
-            const [tRes, sRes, gRes] = await Promise.all([
+            const [tRes, sRes] = await Promise.all([
                 api.get('/admin/teachers'),
                 api.get('/admin/subjects'),
-                api.get('/teacher/grades')
             ]);
             setTeachers(tRes.data.data);
             setSubjects(sRes.data.data);
-            setGrades(gRes.data.data);
         } catch (err) {
             console.error(err);
         } finally {
@@ -42,16 +45,45 @@ const ManageTeachers = () => {
         }
     };
 
-    const handleCreateTeacher = async (e) => {
+    const openCreateModal = () => {
+        setEditingTeacher(null);
+        setFormData(emptyTeacher);
+        setModalOpen(true);
+    };
+
+    const openEditModal = (teacher) => {
+        setEditingTeacher(teacher);
+        setFormData({
+            name: teacher.name || '',
+            email: teacher.email || '',
+            phone: teacher.phone || '',
+            password: '',
+            main_subject: teacher.main_subject || '',
+            profile_image_url: teacher.profile_image_url || '',
+            address: '',
+            date_of_birth: '',
+            notes: ''
+        });
+        setModalOpen(true);
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setSaving(true);
         try {
-            await api.post('/admin/teachers', newTeacher);
+            if (editingTeacher) {
+                const payload = { ...formData };
+                if (!payload.password) delete payload.password;
+                await api.put(`/admin/teachers/${editingTeacher.id}`, payload);
+            } else {
+                await api.post('/admin/teachers', formData);
+            }
             fetchData();
             setModalOpen(false);
-            setNewTeacher({ name: '', email: '', phone: '', password: '', main_subject: '', profile_image_url: '' });
+            setFormData(emptyTeacher);
+            setEditingTeacher(null);
         } catch (err) {
-            alert('Error creating teacher');
+            alert(editingTeacher ? 'Error updating teacher' : 'Error creating teacher');
         } finally {
             setSaving(false);
         }
@@ -67,6 +99,31 @@ const ManageTeachers = () => {
         }
     };
 
+    const handleViewDashboard = async (teacher) => {
+        setImpersonatingId(teacher.id);
+        try {
+            const res = await api.post(`/admin/teachers/${teacher.id}/impersonate`);
+            const payload = res.data?.data;
+            if (!payload?.token) {
+                alert('Could not open teacher dashboard.');
+                return;
+            }
+
+            localStorage.setItem('impersonation_admin_token', localStorage.getItem('token') || '');
+            localStorage.setItem('impersonation_admin_user', localStorage.getItem('user') || '');
+            localStorage.setItem('impersonation_teacher_name', teacher.name || 'Teacher');
+
+            localStorage.setItem('token', payload.token);
+            localStorage.setItem('user', JSON.stringify({ user: payload.user, ...payload.user }));
+
+            navigate('/teacher');
+        } catch (err) {
+            alert('Failed to open teacher dashboard.');
+        } finally {
+            setImpersonatingId(null);
+        }
+    };
+
     return (
         <div className="space-y-8 pb-10">
             <div className="flex justify-between items-center mb-8">
@@ -75,7 +132,7 @@ const ManageTeachers = () => {
                     <p className="text-[#64748B] text-lg font-medium mt-1">Manage educational staff.</p>
                 </div>
                 <div className="flex gap-4">
-                    <button onClick={() => setModalOpen(true)} className="bg-indigo-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl font-bold tracking-tight shadow-lg shadow-indigo-900/10 flex items-center justify-center gap-2 transition-all active:scale-95">
+                    <button onClick={openCreateModal} className="bg-indigo-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl font-bold tracking-tight shadow-lg shadow-indigo-900/10 flex items-center justify-center gap-2 transition-all active:scale-95">
                         <UserPlus size={18} /> Register Teacher
                     </button>
                 </div>
@@ -122,7 +179,13 @@ const ManageTeachers = () => {
                                                     )}
                                                 </div>
                                                 <div>
-                                                    <span className="font-bold text-[#0F172A] block">{t.name}</span>
+                                                    <button
+                                                        onClick={() => handleViewDashboard(t)}
+                                                        className="font-bold text-[#0F172A] block hover:text-indigo-600 transition-colors text-left"
+                                                        title="View teacher dashboard"
+                                                    >
+                                                        {t.name}
+                                                    </button>
                                                     <span className="text-xs text-[#94A3B8] font-medium">Instructor ID: #{t.id}</span>
                                                 </div>
                                             </div>
@@ -149,10 +212,22 @@ const ManageTeachers = () => {
                                         </td>
                                         <td className="py-5 px-8">
                                             <div className="flex justify-end gap-2">
-                                                <button className="p-2 text-[#64748B] hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                                                <button
+                                                    onClick={() => handleViewDashboard(t)}
+                                                    disabled={impersonatingId === t.id}
+                                                    className="p-2 text-[#64748B] hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50"
+                                                    title="View dashboard as teacher"
+                                                >
+                                                    {impersonatingId === t.id ? <Loader2 size={18} className="animate-spin" /> : <Eye size={18} />}
+                                                </button>
+                                                <button
+                                                    onClick={() => openEditModal(t)}
+                                                    className="p-2 text-[#64748B] hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                    title="Edit teacher"
+                                                >
                                                     <Edit size={18} />
                                                 </button>
-                                                <button onClick={() => handleDeleteTeacher(t.id, t.name)} className="p-2 text-[#64748B] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                                <button onClick={() => handleDeleteTeacher(t.id, t.name)} className="p-2 text-[#64748B] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete teacher">
                                                     <Trash2 size={18} />
                                                 </button>
                                             </div>
@@ -165,118 +240,53 @@ const ManageTeachers = () => {
                 )}
             </div>
 
-            {/* Teacher Modal */}
             {modalOpen && (
                 <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-[32px] w-full max-w-lg shadow-xl shadow-slate-200/50 p-8 animate-in zoom-in-95 duration-200">
+                    <div className="bg-white rounded-[32px] w-full max-w-lg shadow-xl shadow-slate-200/50 p-8 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-8 border-b border-[#F1F5F9] pb-6">
                             <div>
-                                <h2 className="text-2xl font-bold text-[#0F172A]">Register Instructor</h2>
-                                <p className="text-sm text-[#64748B] mt-1">Create a new teacher account.</p>
+                                <h2 className="text-2xl font-bold text-[#0F172A]">
+                                    {editingTeacher ? 'Edit Instructor' : 'Register Instructor'}
+                                </h2>
+                                <p className="text-sm text-[#64748B] mt-1">
+                                    {editingTeacher ? 'Update teacher account details.' : 'Create a new teacher account.'}
+                                </p>
                             </div>
                             <button onClick={() => setModalOpen(false)} className="w-10 h-10 rounded-full bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0] hover:text-[#0F172A] flex items-center justify-center transition-colors">
                                 <X size={20} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreateTeacher} className="space-y-5">
+                        <form onSubmit={handleSubmit} className="space-y-5">
                             <div>
                                 <label className="text-sm font-bold text-[#0F172A] mb-1.5 block">Full Name</label>
-                                <input
-                                    className="input-field"
-                                    placeholder="Instructor's full name"
-                                    value={newTeacher.name}
-                                    onChange={e => setNewTeacher({ ...newTeacher, name: e.target.value })}
-                                    required
-                                />
+                                <input className="input-field" placeholder="Instructor's full name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
                             </div>
 
                             <div className="grid grid-cols-2 gap-5">
                                 <div>
                                     <label className="text-sm font-bold text-[#0F172A] mb-1.5 block">Email Address</label>
-                                    <input
-                                        className="input-field"
-                                        placeholder="example@academy.com"
-                                        type="email"
-                                        value={newTeacher.email}
-                                        onChange={e => setNewTeacher({ ...newTeacher, email: e.target.value })}
-                                        required
-                                    />
+                                    <input className="input-field" placeholder="example@academy.com" type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} required />
                                 </div>
                                 <div>
                                     <label className="text-sm font-bold text-[#0F172A] mb-1.5 block">Phone Number</label>
-                                    <input
-                                        className="input-field"
-                                        placeholder="+1 (555) 000-0000"
-                                        type="tel"
-                                        value={newTeacher.phone}
-                                        onChange={e => setNewTeacher({ ...newTeacher, phone: e.target.value })}
-                                        required
-                                    />
+                                    <input className="input-field" placeholder="+1 (555) 000-0000" type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} required />
                                 </div>
                             </div>
 
                             <div>
                                 <label className="text-sm font-bold text-[#0F172A] mb-1.5 block">Avatar URL <span className="text-[#94A3B8] font-normal">(Optional)</span></label>
-                                <input
-                                    className="input-field"
-                                    placeholder="https://images.com/profile.jpg"
-                                    value={newTeacher.profile_image_url}
-                                    onChange={e => setNewTeacher({ ...newTeacher, profile_image_url: e.target.value })}
-                                />
+                                <input className="input-field" placeholder="https://images.com/profile.jpg" value={formData.profile_image_url} onChange={e => setFormData({ ...formData, profile_image_url: e.target.value })} />
                             </div>
 
                             <div className="grid grid-cols-2 gap-5">
                                 <div>
-                                    <label className="text-sm font-bold text-[#0F172A] mb-1.5 block">Address</label>
-                                    <input
-                                        className="input-field"
-                                        placeholder="Academy Address"
-                                        value={newTeacher.address}
-                                        onChange={e => setNewTeacher({ ...newTeacher, address: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-sm font-bold text-[#0F172A] mb-1.5 block">Date of Birth</label>
-                                    <input
-                                        className="input-field"
-                                        type="date"
-                                        value={newTeacher.date_of_birth}
-                                        onChange={e => setNewTeacher({ ...newTeacher, date_of_birth: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-bold text-[#0F172A] mb-1.5 block">Bio / Notes</label>
-                                <textarea
-                                    className="input-field py-3 min-h-[100px]"
-                                    placeholder="Teacher's background, specialties, etc."
-                                    value={newTeacher.notes}
-                                    onChange={e => setNewTeacher({ ...newTeacher, notes: e.target.value })}
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-5">
-                                <div>
-                                    <label className="text-sm font-bold text-[#0F172A] mb-1.5 block">Password</label>
-                                    <input
-                                        className="input-field"
-                                        placeholder="••••••••"
-                                        type="password"
-                                        value={newTeacher.password}
-                                        onChange={e => setNewTeacher({ ...newTeacher, password: e.target.value })}
-                                        required
-                                    />
+                                    <label className="text-sm font-bold text-[#0F172A] mb-1.5 block">Password {editingTeacher && <span className="text-[#94A3B8] font-normal">(leave blank to keep)</span>}</label>
+                                    <input className="input-field" placeholder="••••••••" type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} required={!editingTeacher} />
                                 </div>
                                 <div>
                                     <label className="text-sm font-bold text-[#0F172A] mb-1.5 block">Primary Subject</label>
-                                    <select
-                                        className="input-field cursor-pointer"
-                                        value={newTeacher.main_subject}
-                                        onChange={e => setNewTeacher({ ...newTeacher, main_subject: e.target.value })}
-                                        required
-                                    >
+                                    <select className="input-field cursor-pointer" value={formData.main_subject} onChange={e => setFormData({ ...formData, main_subject: e.target.value })} required>
                                         <option value="" disabled>Select subject...</option>
                                         {subjects.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                                     </select>
@@ -288,7 +298,7 @@ const ManageTeachers = () => {
                                     Cancel
                                 </button>
                                 <button disabled={saving} className="bg-indigo-900 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-900/10 hover:bg-slate-800 transition-all flex items-center gap-2">
-                                    {saving ? <Loader2 className="animate-spin w-5 h-5" /> : 'Confirm Registration'}
+                                    {saving ? <Loader2 className="animate-spin w-5 h-5" /> : (editingTeacher ? 'Save Changes' : 'Confirm Registration')}
                                 </button>
                             </div>
                         </form>

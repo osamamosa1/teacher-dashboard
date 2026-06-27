@@ -1,14 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../api/axios';
-import { User, Mail, Phone, MapPin, Calendar, FileText, Loader2, Save, Camera, LogOut, Settings as SettingsIcon, Globe, Facebook, Youtube, MessageCircle, Image } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { User, Mail, Phone, Loader2, Save, Camera, LogOut } from 'lucide-react';
+import { useNavigate, Navigate } from 'react-router-dom';
 
 const Profile = () => {
     const [profile, setProfile] = useState(null);
-    const [settings, setSettings] = useState(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [updatingBranding, setUpdatingBranding] = useState(false);
     const [message, setMessage] = useState('');
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
@@ -24,16 +22,10 @@ const Profile = () => {
 
     const fetchInitData = async () => {
         try {
-            const [profileRes, settingsRes] = await Promise.all([
-                api.get('/user/profile'),
-                api.get('/settings/1')
-            ]);
+            const profileRes = await api.get('/user/profile');
             const profileData = extractProfile(profileRes.data);
             if (profileData && typeof profileData === 'object') {
                 setProfile(profileData);
-            }
-            if (settingsRes.data?.data) {
-                setSettings(settingsRes.data.data);
             }
         } catch (err) {
             console.error(err);
@@ -68,19 +60,6 @@ const Profile = () => {
         }
     };
 
-    const handleBrandingUpdate = async (e) => {
-        e.preventDefault();
-        setUpdatingBranding(true);
-        try {
-            await api.post('/settings', settings);
-            alert('Branding updated successfully! Refresh to see changes.');
-        } catch (err) {
-            alert('Error updating branding settings.');
-        } finally {
-            setUpdatingBranding(false);
-        }
-    };
-
     if (loading) return (
         <div className="flex flex-col items-center justify-center py-32 gap-4">
             <Loader2 className="animate-spin text-indigo-600 w-12 h-12" />
@@ -95,6 +74,10 @@ const Profile = () => {
             <button onClick={fetchInitData} className="btn btn-primary">Try Again</button>
         </div>
     );
+
+    if (profile.role === 'admin') {
+        return <Navigate to="/admin/settings" replace />;
+    }
 
     return (
         <div className="max-w-4xl mx-auto pb-20">
@@ -278,128 +261,6 @@ const Profile = () => {
                             </div>
                         </div>
                     </form>
-
-                    {/* Branding Settings (Visible to all) */}
-                    {settings && (
-                        <div className="mt-8 animate-in fade-in slide-in-from-bottom-5">
-                            <form onSubmit={handleBrandingUpdate} className="bg-white rounded-[32px] shadow-sm border border-[#E2E8F0] overflow-hidden">
-                                <div className="p-8 border-b border-[#F1F5F9] flex items-center gap-3 bg-indigo-50/30">
-                                    <div className="p-2 bg-white rounded-lg border border-indigo-100 shadow-sm">
-                                        <Globe className="text-indigo-600" size={20} />
-                                    </div>
-                                    <h3 className="text-xl font-bold text-[#0F172A]">Platform Branding</h3>
-                                </div>
-                                
-                                <div className="p-8 space-y-8">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <div className="space-y-4">
-                                             <div className="space-y-2">
-                                                 <label className="text-sm font-bold text-[#0F172A] block">Platform Logo URL</label>
-                                                 <div className="flex gap-2">
-                                                     <input 
-                                                         className="flex-1 bg-[#f8fafc] border border-slate-200 h-12 pl-4 pr-4 rounded-xl text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all outline-none" 
-                                                         placeholder="Logo URL" 
-                                                         value={settings.logo_url} 
-                                                         onChange={e => setSettings({ ...settings, logo_url: e.target.value })} 
-                                                     />
-                                                     <label className="h-12 px-4 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-colors font-bold text-xs shrink-0">
-                                                         <Image size={16} /> 
-                                                         Upload
-                                                         <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
-                                                             const file = e.target.files[0];
-                                                             if (!file) return;
-                                                             const formData = new FormData();
-                                                             formData.append('file', file);
-                                                             try {
-                                                                 const res = await api.post('/uploads/image', formData);
-                                                                 setSettings({ ...settings, logo_url: res.data.url });
-                                                             } catch (err) {
-                                                                 alert('Upload failed');
-                                                             }
-                                                         }} />
-                                                     </label>
-                                                 </div>
-                                             </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-bold text-[#0F172A] block">Platform Display Name</label>
-                                                <input 
-                                                    className="w-full bg-[#F8FAFC] border border-[#E2E8F0] h-12 px-4 rounded-xl text-sm font-semibold text-[#0F172A] focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                                                    value={settings.app_name}
-                                                    onChange={e => setSettings({...settings, app_name: e.target.value})}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-[#F8FAFC] rounded-24 border border-dashed border-[#CBD5E1] p-6 flex flex-col items-center justify-center text-center">
-                                            <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-4">Logo Preview</p>
-                                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-[#E2E8F0]">
-                                                <img 
-                                                    src={settings.logo_url} 
-                                                    className="max-h-20 max-w-[200px] object-contain" 
-                                                    alt="Logo Preview"
-                                                    onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=LOGO+ERROR&background=ef4444&color=fff'; }}
-                                                />
-                                            </div>
-                                            <p className="mt-4 text-[11px] text-[#64748B] leading-relaxed">
-                                                Recommended: Transparent PNG, 400x120px
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    {/* Contact Info Section */}
-                                    <div className="pt-8 border-t border-[#F1F5F9] space-y-6">
-                                        <h4 className="text-sm font-bold text-[#64748B] uppercase tracking-wider">Contact Information</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-bold text-[#0F172A] flex items-center gap-2">
-                                                    <Facebook size={14} className="text-[#1877F2]" /> Facebook URL
-                                                </label>
-                                                <input 
-                                                    className="w-full bg-[#F8FAFC] border border-[#E2E8F0] h-11 px-4 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                                                    value={settings.facebook_url}
-                                                    onChange={e => setSettings({...settings, facebook_url: e.target.value})}
-                                                    placeholder="https://facebook.com/yourpage"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-bold text-[#0F172A] flex items-center gap-2">
-                                                    <Youtube size={14} className="text-[#FF0000]" /> YouTube URL
-                                                </label>
-                                                <input 
-                                                    className="w-full bg-[#F8FAFC] border border-[#E2E8F0] h-11 px-4 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                                                    value={settings.youtube_url}
-                                                    onChange={e => setSettings({...settings, youtube_url: e.target.value})}
-                                                    placeholder="https://youtube.com/@yourchannel"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-bold text-[#0F172A] flex items-center gap-2">
-                                                    <MessageCircle size={14} className="text-[#25D366]" /> WhatsApp Number
-                                                </label>
-                                                <input 
-                                                    className="w-full bg-[#F8FAFC] border border-[#E2E8F0] h-11 px-4 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                                                    value={settings.whatsapp_number}
-                                                    onChange={e => setSettings({...settings, whatsapp_number: e.target.value})}
-                                                    placeholder="0123456789"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-6 border-t border-[#F1F5F9] flex justify-end">
-                                        <button 
-                                            type="submit"
-                                            disabled={updatingBranding}
-                                            className="bg-indigo-600 text-white h-12 px-8 rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg active:scale-95 disabled:opacity-70"
-                                        >
-                                            {updatingBranding ? <Loader2 className="animate-spin" size={20} /> : <SettingsIcon size={18} />}
-                                            Update Platform Branding
-                                        </button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>

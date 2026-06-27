@@ -1,0 +1,30 @@
+# Dependencies
+**/node_modules/**
+
+# Build
+**/dist/**
+**/build/**
+**/.next/**
+**/.nuxt/**
+**/.cache/**
+**/.turbo/**
+**/.parcel-cache/**
+**/.vite/**
+**/coverage/**
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/**
+.idea/**
+
+# Git
+.git/**
+*.log
+
+# Temp
+tmp/**
+temp/**

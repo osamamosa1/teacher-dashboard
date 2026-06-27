@@ -5,8 +5,9 @@ import {
     ChevronLeft, Loader2, PlayCircle, Plus, Layout, Video, FileText,
     CheckCircle, HelpCircle, Award, Clock, Trash2, Edit2,
     List as ListIcon, Layers, Settings, Users, ArrowLeft,
-    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy
+    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy, MessageCircle
 } from 'lucide-react';
+import CourseChatPanel from '../components/CourseChatPanel';
 
 const CourseCurriculum = () => {
     const { courseId } = useParams();
@@ -39,6 +40,9 @@ const CourseCurriculum = () => {
     const [selectedStudentResult, setSelectedStudentResult] = useState(null);
     const [loadingResult, setLoadingResult] = useState(false);
     const [resultModalOpen, setResultModalOpen] = useState(false);
+    const [submissionsMode, setSubmissionsMode] = useState('exam');
+    const [assignmentStudentModalOpen, setAssignmentStudentModalOpen] = useState(false);
+    const [selectedAssignmentStudent, setSelectedAssignmentStudent] = useState(null);
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
 
     // ── Copy Unit state ──────────────────────────────────────────────────────
@@ -55,6 +59,12 @@ const CourseCurriculum = () => {
     const [copyLessonUnits, setCopyLessonUnits] = useState([]);
     const [copyLessonUnitsLoading, setCopyLessonUnitsLoading] = useState(false);
     const [copyLessonSaving, setCopyLessonSaving] = useState(false);
+
+    const [addStudentsOpen, setAddStudentsOpen] = useState(false);
+    const [eligibleStudents, setEligibleStudents] = useState([]);
+    const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+    const [loadingEligible, setLoadingEligible] = useState(false);
+    const [bulkEnrolling, setBulkEnrolling] = useState(false);
 
     useEffect(() => {
         fetchCurriculum();
@@ -172,13 +182,79 @@ const CourseCurriculum = () => {
         setSelectedQuiz(lesson);
         setSubmissionsModalOpen(true);
         setLoadingSubmissions(true);
+        setSubmissionsMode(lesson.type === 'assignment' ? 'assignment' : 'exam');
         try {
-            const res = await api.get(`/teacher/quizzes/${lesson.id}/submissions`);
+            const endpoint = lesson.type === 'assignment'
+                ? `/teacher/lessons/${lesson.id}/assignment/submissions`
+                : `/teacher/quizzes/${lesson.id}/submissions`;
+            const res = await api.get(endpoint);
             setQuizSubmissions(res.data.data || []);
         } catch (err) {
             console.error('Error fetching submissions:', err);
         } finally {
             setLoadingSubmissions(false);
+        }
+    };
+
+    const groupedAssignmentStudents = submissionsMode === 'assignment'
+        ? Object.values(
+            quizSubmissions.reduce((acc, sub) => {
+                const key = sub.student_id;
+                if (!acc[key]) {
+                    acc[key] = {
+                        student_id: sub.student_id,
+                        student_name: sub.student_name,
+                        submissions: [],
+                    };
+                }
+                acc[key].submissions.push(sub);
+                return acc;
+            }, {})
+          )
+        : [];
+
+    const handleViewAssignmentStudent = (studentGroup) => {
+        setSelectedAssignmentStudent(studentGroup);
+        setAssignmentStudentModalOpen(true);
+    };
+
+    const openAddStudentsModal = async () => {
+        setAddStudentsOpen(true);
+        setLoadingEligible(true);
+        setSelectedStudentIds([]);
+        try {
+            const res = await api.get('/teacher/courses/0/students');
+            const all = res.data.data || [];
+            const enrolledIds = new Set(students.map((s) => s.student_id));
+            setEligibleStudents(all.filter((s) => !enrolledIds.has(s.student_id)));
+        } catch (err) {
+            console.error(err);
+            alert('Failed to load students');
+        } finally {
+            setLoadingEligible(false);
+        }
+    };
+
+    const toggleStudentSelection = (id) => {
+        setSelectedStudentIds((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        );
+    };
+
+    const handleBulkEnroll = async () => {
+        if (selectedStudentIds.length === 0) return;
+        setBulkEnrolling(true);
+        try {
+            const res = await api.post(`/teacher/courses/${courseId}/students/bulk`, {
+                student_ids: selectedStudentIds,
+            });
+            setAddStudentsOpen(false);
+            await fetchStudents();
+            alert(res.data.message || 'Students enrolled');
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to enroll students');
+        } finally {
+            setBulkEnrolling(false);
         }
     };
 
@@ -399,6 +475,12 @@ const CourseCurriculum = () => {
                     Students ({students.length})
                 </button>
                 <button
+                    onClick={() => setActiveTab('chat')}
+                    className={`flex items-center gap-2 pb-2 transition-all duration-200 ${activeTab === 'chat' ? 'text-[#0F172A] font-extrabold border-b-2 border-[#0F172A]' : 'text-[#94A3B8] font-bold hover:text-[#0F172A]'}`}
+                >
+                    <MessageCircle size={16} /> Chat
+                </button>
+                <button
                     onClick={() => setActiveTab('units')}
                     className={`flex items-center gap-2 pb-2 transition-all duration-200 ${activeTab === 'units' ? 'text-[#0F172A] font-extrabold border-b-2 border-[#0F172A]' : 'text-[#94A3B8] font-bold hover:text-[#0F172A]'}`}
                 >
@@ -444,8 +526,8 @@ const CourseCurriculum = () => {
                                         <div className="col-span-1 font-bold text-[#64748B] hidden md:block">{num}</div>
                                         <div className="col-span-5">
                                             <p 
-                                                className={`font-extrabold text-[#0F172A] text-base group-hover:underline decoration-2 underline-offset-2 ${lesson.type === 'exam' ? 'cursor-pointer text-indigo-700' : ''}`}
-                                                onClick={() => lesson.type === 'exam' && handleViewSubmissions(lesson)}
+                                                className={`font-extrabold text-[#0F172A] text-base group-hover:underline decoration-2 underline-offset-2 ${(lesson.type === 'exam' || lesson.type === 'assignment') ? 'cursor-pointer text-indigo-700' : ''}`}
+                                                onClick={() => (lesson.type === 'exam' || lesson.type === 'assignment') && handleViewSubmissions(lesson)}
                                             >
                                                 {lesson.title}
                                             </p>
@@ -482,6 +564,8 @@ const CourseCurriculum = () => {
                             })}
                         </div>
                     )
+                ) : activeTab === 'chat' ? (
+                    <CourseChatPanel courseId={parseInt(courseId, 10)} />
                 ) : activeTab === 'students' ? (
                     studentsLoading ? (
                         <div className="flex items-center justify-center py-20 gap-3 text-[#64748B] font-semibold">
@@ -490,19 +574,19 @@ const CourseCurriculum = () => {
                     ) : students.length === 0 ? (
                         <div className="py-20 text-center">
                             <p className="font-extrabold text-[#0F172A] text-xl">No students registered</p>
-                            <p className="text-sm font-semibold text-[#64748B] mt-2 mb-6">Go to Student Management to enroll students in this course.</p>
-                            <Link
-                                to="/teacher/students"
-                                className="text-[#0F172A] font-bold border-b border-[#0F172A] pb-0.5 hover:text-black hover:border-black transition-all inline-flex items-center gap-2"
+                            <p className="text-sm font-semibold text-[#64748B] mt-2 mb-6">Add students directly to this course.</p>
+                            <button
+                                onClick={openAddStudentsModal}
+                                className="bg-[#0F172A] hover:bg-black text-white px-6 py-3 rounded-xl font-bold inline-flex items-center gap-2"
                             >
-                                <Users size={16} /> Manage Students
-                            </Link>
+                                <UserPlus size={16} /> Add Students
+                            </button>
                         </div>
                     ) : (
                         <div className="flex flex-col border-t border-b border-[#E2E8F0] divide-y divide-[#E2E8F0]">
                             {/* Sort Bar */}
                             <div className="bg-[#F8FAFC] px-4 py-3 flex items-center justify-between border-b border-[#E2E8F0]">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest">Sort By:</span>
                                     {[
                                         { key: 'name', label: 'Alphabetical' },
@@ -526,7 +610,15 @@ const CourseCurriculum = () => {
                                         </button>
                                     ))}
                                 </div>
-                                <p className="text-[10px] font-bold text-[#64748B]">Showing {students.length} Participants</p>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={openAddStudentsModal}
+                                        className="bg-[#0F172A] hover:bg-black text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2"
+                                    >
+                                        <UserPlus size={14} /> Add Students
+                                    </button>
+                                    <p className="text-[10px] font-bold text-[#64748B]">Showing {students.length} Participants</p>
+                                </div>
                             </div>
 
                             {/* Header Row */}
@@ -800,7 +892,9 @@ const CourseCurriculum = () => {
                     <div className="bg-white w-full max-w-2xl rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
                         <div className="p-8 border-b border-[#F1F5F9] bg-[#F8FAFC]/50 flex justify-between items-center">
                             <div>
-                                <h2 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">Quiz Submissions</h2>
+                                <h2 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">
+                                    {submissionsMode === 'assignment' ? 'Assignment Submissions' : 'Quiz Submissions'}
+                                </h2>
                                 <p className="text-[#64748B] text-sm font-medium mt-1">Reviewing results for <span className="text-indigo-600 font-bold">{selectedQuiz?.title}</span></p>
                             </div>
                             <button onClick={() => setSubmissionsModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E2E8F0] shadow-sm text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors">
@@ -819,6 +913,29 @@ const CourseCurriculum = () => {
                                     <CheckCircle className="mx-auto text-[#94A3B8] w-12 h-12 mb-4 opacity-20" />
                                     <p className="text-[#0F172A] font-bold text-lg">No submissions yet</p>
                                     <p className="text-[#64748B]">Students will appear here once they complete the quiz.</p>
+                                </div>
+                            ) : submissionsMode === 'assignment' ? (
+                                <div className="space-y-4">
+                                    {groupedAssignmentStudents.map(group => (
+                                        <div
+                                            key={group.student_id}
+                                            onClick={() => handleViewAssignmentStudent(group)}
+                                            className="flex items-center justify-between p-4 rounded-2xl border border-[#F1F5F9] bg-[#F8FAFC]/30 hover:bg-white hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer group/item"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-black">
+                                                    {group.student_name?.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-[#0F172A] group-hover/item:text-indigo-700 transition-colors">{group.student_name}</p>
+                                                    <p className="text-xs text-[#94A3B8] font-bold uppercase tracking-widest">
+                                                        {group.submissions.length} submission{group.submissions.length > 1 ? 's' : ''}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <ChevronRight size={18} className="text-[#94A3B8] group-hover/item:text-indigo-600" />
+                                        </div>
+                                    ))}
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -852,6 +969,94 @@ const CourseCurriculum = () => {
                         </div>
                         <div className="p-6 border-t border-[#F1F5F9] bg-[#F8FAFC]/50 flex justify-end">
                             <button onClick={() => setSubmissionsModalOpen(false)} className="px-8 py-3 rounded-2xl font-bold bg-[#0F172A] text-white hover:bg-black transition-colors">Done</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {assignmentStudentModalOpen && selectedAssignmentStudent && (
+                <div className="fixed inset-0 lg:left-[260px] bg-[#0F172A]/40 backdrop-blur-sm z-[280] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white w-full max-w-xl rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="p-8 border-b border-[#F1F5F9] bg-[#F8FAFC]/50 flex justify-between items-center">
+                            <div>
+                                <h2 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">{selectedAssignmentStudent.student_name}</h2>
+                                <p className="text-[#64748B] text-sm font-medium mt-1">Submitted files for <span className="text-indigo-600 font-bold">{selectedQuiz?.title}</span></p>
+                            </div>
+                            <button onClick={() => setAssignmentStudentModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E2E8F0] shadow-sm text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar space-y-3">
+                            {selectedAssignmentStudent.submissions.map((sub) => (
+                                <button
+                                    key={sub.id}
+                                    type="button"
+                                    onClick={() => window.open(sub.submission_url, '_blank', 'noopener,noreferrer')}
+                                    className="w-full text-left p-4 rounded-2xl border border-[#F1F5F9] bg-[#F8FAFC]/30 hover:bg-white hover:border-indigo-200 hover:shadow-md transition-all"
+                                >
+                                    <p className="text-sm font-bold text-indigo-700 break-all">{sub.submission_url}</p>
+                                    <p className="text-[10px] text-[#94A3B8] font-bold uppercase tracking-widest mt-2">{sub.submitted_at}</p>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="p-6 border-t border-[#F1F5F9] bg-[#F8FAFC]/50 flex justify-end">
+                            <button onClick={() => setAssignmentStudentModalOpen(false)} className="px-8 py-3 rounded-2xl font-bold bg-[#0F172A] text-white hover:bg-black transition-colors">Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {addStudentsOpen && (
+                <div className="fixed inset-0 lg:left-[260px] bg-[#0F172A]/40 backdrop-blur-sm z-[260] flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-lg rounded-[28px] shadow-2xl overflow-hidden">
+                        <div className="p-6 border-b border-[#F1F5F9] flex justify-between items-center">
+                            <div>
+                                <h2 className="text-xl font-extrabold text-[#0F172A]">Add Students to Course</h2>
+                                <p className="text-sm text-[#64748B] mt-1">Select one or more students to enroll</p>
+                            </div>
+                            <button onClick={() => setAddStudentsOpen(false)} className="w-9 h-9 rounded-full bg-[#F8FAFC] flex items-center justify-center">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="max-h-[50vh] overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                            {loadingEligible ? (
+                                <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>
+                            ) : eligibleStudents.length === 0 ? (
+                                <p className="text-center text-[#94A3B8] py-10 font-medium">No available students to add</p>
+                            ) : (
+                                eligibleStudents.map((s) => (
+                                    <label
+                                        key={s.student_id}
+                                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                                            selectedStudentIds.includes(s.student_id)
+                                                ? 'border-indigo-300 bg-indigo-50'
+                                                : 'border-[#E2E8F0] hover:bg-[#F8FAFC]'
+                                        }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedStudentIds.includes(s.student_id)}
+                                            onChange={() => toggleStudentSelection(s.student_id)}
+                                            className="w-4 h-4 accent-indigo-600"
+                                        />
+                                        <div>
+                                            <p className="font-bold text-[#0F172A] text-sm">{s.student_name}</p>
+                                            <p className="text-xs text-[#94A3B8]">{s.student_email}</p>
+                                        </div>
+                                    </label>
+                                ))
+                            )}
+                        </div>
+                        <div className="p-4 border-t border-[#F1F5F9] flex justify-end gap-3">
+                            <button onClick={() => setAddStudentsOpen(false)} className="px-5 py-2.5 rounded-xl font-bold text-[#64748B]">Cancel</button>
+                            <button
+                                onClick={handleBulkEnroll}
+                                disabled={bulkEnrolling || selectedStudentIds.length === 0}
+                                className="px-6 py-2.5 rounded-xl font-bold bg-[#0F172A] text-white disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {bulkEnrolling && <Loader2 className="animate-spin w-4 h-4" />}
+                                Enroll {selectedStudentIds.length > 0 ? `(${selectedStudentIds.length})` : ''}
+                            </button>
                         </div>
                     </div>
                 </div>
