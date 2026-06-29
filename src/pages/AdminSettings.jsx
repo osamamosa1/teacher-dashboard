@@ -9,6 +9,7 @@ const AdminSettings = () => {
         facebook_url: '',
         youtube_url: '',
         whatsapp_number: '',
+        telegram_url: '',
         global_announcement: ''
     });
     const [loading, setLoading] = useState(true);
@@ -199,7 +200,7 @@ const AdminSettings = () => {
                                 placeholder="https://facebook.com/your-page"
                             />
                         </div>
-                        <div className="md:col-span-2">
+                        <div>
                             <label className="block text-sm font-bold text-[#0F172A] mb-2">YouTube Channel URL</label>
                             <input 
                                 type="text" 
@@ -207,6 +208,16 @@ const AdminSettings = () => {
                                 value={settings.youtube_url}
                                 onChange={e => setSettings({...settings, youtube_url: e.target.value})}
                                 placeholder="https://youtube.com/@channel"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-[#0F172A] mb-2">Telegram URL / Username</label>
+                            <input 
+                                type="text" 
+                                className="w-full px-4 py-3 rounded-xl border border-[#E2E8F0] focus:ring-2 focus:ring-sky-500 outline-none font-medium transition-all"
+                                value={settings.telegram_url || ''}
+                                onChange={e => setSettings({...settings, telegram_url: e.target.value})}
+                                placeholder="https://t.me/your_channel"
                             />
                         </div>
                     </div>

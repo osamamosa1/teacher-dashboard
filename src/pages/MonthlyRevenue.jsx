@@ -1,26 +1,28 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, ArrowLeft, Calendar, ChevronRight } from 'lucide-react';
+import { Loader2, ArrowLeft, UserPlus, History } from 'lucide-react';
 import api from '../api/axios';
 
 const MonthlyRevenue = () => {
-    const [months, setMonths] = useState([]);
+    const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchRevenue();
+        fetchTransactions();
     }, []);
 
-    const fetchRevenue = async () => {
+    const fetchTransactions = async () => {
         try {
-            const res = await api.get('/teacher/revenue/monthly');
-            setMonths(res.data.data || []);
+            const res = await api.get('/teacher/revenue/transactions');
+            setTransactions(res.data.data || []);
         } catch (err) {
-            console.error('Failed to fetch monthly revenue', err);
+            console.error('Failed to fetch revenue transactions', err);
         } finally {
             setLoading(false);
         }
     };
+
+    const total = transactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
 
     if (loading) return (
         <div className="flex h-[60vh] items-center justify-center">
@@ -35,40 +37,58 @@ const MonthlyRevenue = () => {
                     <ArrowLeft className="text-slate-600" />
                 </Link>
                 <div>
-                    <h1 className="text-3xl font-extrabold text-[#0F172A] tracking-tight">Revenue History</h1>
-                    <p className="text-[#64748B] font-medium mt-1">Monthly breakdown of your earnings</p>
+                    <h1 className="text-3xl font-extrabold text-[#0F172A] tracking-tight">Revenue Details</h1>
+                    <p className="text-[#64748B] font-medium mt-1">
+                        All enrollments & renewals — Total: <span className="text-indigo-600 font-bold">${total.toFixed(2)}</span>
+                    </p>
                 </div>
             </div>
 
-            {months.length === 0 ? (
+            {transactions.length === 0 ? (
                 <div className="bg-white p-12 text-center rounded-[24px] border border-slate-200">
-                    <p className="text-slate-500 font-medium">No revenue to show yet.</p>
+                    <p className="text-slate-500 font-medium">No revenue yet. Enroll a student in a course to record earnings.</p>
                 </div>
             ) : (
-                <div className="grid gap-4">
-                    {months.map((item, i) => (
-                        <Link 
-                            key={i} 
-                            to={`/teacher/revenue/${item.month}`}
-                            className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all flex items-center justify-between group"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="p-4 bg-indigo-50 text-indigo-600 rounded-xl group-hover:scale-110 transition-transform">
-                                    <Calendar size={24} />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-bold text-slate-800">{item.month}</h3>
-                                    <p className="text-sm font-medium text-slate-500">{item.transactions_count} Transactions</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <div className="text-right">
-                                    <p className="text-xl font-extrabold text-indigo-600">${item.revenue}</p>
-                                </div>
-                                <ChevronRight className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
-                            </div>
-                        </Link>
-                    ))}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Student</th>
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Course</th>
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Price</th>
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Registered</th>
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Type</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {transactions.map((tx) => (
+                                <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="p-4">
+                                        <span className="font-bold text-slate-800">{tx.student_name}</span>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className="text-sm font-medium text-slate-600">{tx.course_name}</span>
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        <span className="font-extrabold text-indigo-600">${Number(tx.amount).toFixed(2)}</span>
+                                    </td>
+                                    <td className="p-4 text-right text-sm font-medium text-slate-500 whitespace-nowrap">
+                                        {tx.date}
+                                    </td>
+                                    <td className="p-4">
+                                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                            tx.type === 'enrollment'
+                                                ? 'bg-emerald-100 text-emerald-700'
+                                                : 'bg-amber-100 text-amber-700'
+                                        }`}>
+                                            {tx.type === 'enrollment' ? <UserPlus size={12} /> : <History size={12} />}
+                                            {tx.type}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             )}
         </div>
