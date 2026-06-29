@@ -1175,12 +1175,19 @@ const ManageStudents = () => {
                                             className="bg-white p-4 rounded-2xl border border-[#E2E8F0] flex items-center justify-between"
                                         >
                                             <div className="flex items-center gap-4">
-                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${p.type === 'exam' ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'}`}>
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                                    p.type === 'exam' ? 'bg-indigo-50 text-indigo-600'
+                                                    : p.type === 'video' ? 'bg-rose-50 text-rose-600'
+                                                    : 'bg-emerald-50 text-emerald-600'
+                                                }`}>
                                                     {p.type === 'exam' ? <Award size={18} /> : <BookOpen size={18} />}
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-black text-[#0F172A]">
-                                                        {p.description}
+                                                        {p.lesson_title || p.description}
+                                                    </p>
+                                                    <p className="text-[10px] font-bold text-[#94A3B8] mt-0.5 uppercase tracking-wide">
+                                                        {p.type}
                                                     </p>
                                                     <p className="text-[10px] font-bold text-[#94A3B8] mt-0.5">
                                                         {new Date(p.created_at).toLocaleDateString()} at {new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

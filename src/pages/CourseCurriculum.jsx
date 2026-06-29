@@ -8,6 +8,7 @@ import {
     ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy, MessageCircle
 } from 'lucide-react';
 import CourseChatPanel from '../components/CourseChatPanel';
+import VideoLessonInsightsModal from '../components/VideoLessonInsightsModal';
 
 const CourseCurriculum = () => {
     const { courseId } = useParams();
@@ -65,6 +66,7 @@ const CourseCurriculum = () => {
     const [selectedStudentIds, setSelectedStudentIds] = useState([]);
     const [loadingEligible, setLoadingEligible] = useState(false);
     const [bulkEnrolling, setBulkEnrolling] = useState(false);
+    const [videoInsightsLesson, setVideoInsightsLesson] = useState(null);
 
     useEffect(() => {
         fetchCurriculum();
@@ -179,6 +181,10 @@ const CourseCurriculum = () => {
     };
 
     const handleViewSubmissions = async (lesson) => {
+        if (lesson.type === 'video') {
+            setVideoInsightsLesson(lesson);
+            return;
+        }
         setSelectedQuiz(lesson);
         setSubmissionsModalOpen(true);
         setLoadingSubmissions(true);
@@ -526,8 +532,8 @@ const CourseCurriculum = () => {
                                         <div className="col-span-1 font-bold text-[#64748B] hidden md:block">{num}</div>
                                         <div className="col-span-5">
                                             <p 
-                                                className={`font-extrabold text-[#0F172A] text-base group-hover:underline decoration-2 underline-offset-2 ${(lesson.type === 'exam' || lesson.type === 'assignment') ? 'cursor-pointer text-indigo-700' : ''}`}
-                                                onClick={() => (lesson.type === 'exam' || lesson.type === 'assignment') && handleViewSubmissions(lesson)}
+                                                className={`font-extrabold text-[#0F172A] text-base group-hover:underline decoration-2 underline-offset-2 ${(lesson.type === 'exam' || lesson.type === 'assignment' || lesson.type === 'video') ? 'cursor-pointer text-indigo-700' : ''}`}
+                                                onClick={() => (lesson.type === 'exam' || lesson.type === 'assignment' || lesson.type === 'video') && handleViewSubmissions(lesson)}
                                             >
                                                 {lesson.title}
                                             </p>
@@ -1060,6 +1066,13 @@ const CourseCurriculum = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {videoInsightsLesson && (
+                <VideoLessonInsightsModal
+                    lesson={videoInsightsLesson}
+                    onClose={() => setVideoInsightsLesson(null)}
+                />
             )}
 
             {/* Detailed Result Modal */}
