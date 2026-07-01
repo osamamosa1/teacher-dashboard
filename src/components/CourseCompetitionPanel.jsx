@@ -22,6 +22,8 @@ const CourseCompetitionPanel = ({ courseId }) => {
         student_ids: [],
         lesson_exam_ids: [],
         standalone_exam_ids: [],
+        questions_per_round: 5,
+        time_limit_minutes: 15,
     });
 
     useEffect(() => {
@@ -31,14 +33,28 @@ const CourseCompetitionPanel = ({ courseId }) => {
     const loadAll = async () => {
         setLoading(true);
         try {
-            const [compRes, studRes, examRes] = await Promise.all([
+            const [compRes, studRes, examRes, lessonsRes] = await Promise.all([
                 api.get(`/teacher/courses/${courseId}/competitions`),
                 api.get(`/teacher/courses/${courseId}/students`),
-                api.get(`/teacher/courses/${courseId}/competitions/available-exams`),
+                api.get(`/teacher/courses/${courseId}/competitions/available-exams`).catch(() => ({ data: {} })),
+                api.get(`/teacher/courses/${courseId}/lessons`).catch(() => ({ data: {} })),
             ]);
             setCompetitions(compRes.data?.data || { cup: null, league: null });
             setStudents(studRes.data?.data || []);
-            setAvailableExams(examRes.data?.data || { course_exams: [], standalone_exams: [] });
+
+            let exams = examRes.data?.data || { course_exams: [], standalone_exams: [] };
+            if (!exams.course_exams?.length && lessonsRes.data?.data) {
+                const fromLessons = (lessonsRes.data.data || [])
+                    .filter(l => (l.type || '').toLowerCase() === 'exam')
+                    .map(l => ({
+                        id: l.id,
+                        title: l.exam?.title || l.title,
+                        source: 'lesson',
+                        questions_count: l.exam?.questions?.length ?? 0,
+                    }));
+                if (fromLessons.length) exams = { ...exams, course_exams: fromLessons };
+            }
+            setAvailableExams(exams);
         } catch (e) {
             console.error(e);
         } finally {
@@ -98,9 +114,14 @@ const CourseCompetitionPanel = ({ courseId }) => {
                 student_ids: form.student_ids,
                 lesson_exam_ids: form.lesson_exam_ids,
                 standalone_exam_ids: form.standalone_exam_ids,
+                questions_per_round: Number(form.questions_per_round) || 5,
+                time_limit_seconds: (Number(form.time_limit_minutes) || 15) * 60,
             });
             setShowForm(false);
-            setForm({ type: 'league', student_ids: [], lesson_exam_ids: [], standalone_exam_ids: [] });
+            setForm({
+                type: 'league', student_ids: [], lesson_exam_ids: [], standalone_exam_ids: [],
+                questions_per_round: 5, time_limit_minutes: 15,
+            });
             await loadAll();
             alert('تم إنشاء المسابقة بنجاح. المسابقة القديمة من نفس النوع تم حذفها.');
         } catch (e) {
@@ -166,6 +187,31 @@ const CourseCompetitionPanel = ({ courseId }) => {
         setEditQuestions(qs => qs.filter((_, i) => i !== idx));
     };
 
+    const startKnockout = async (comp) => {
+        if (!window.confirm('بدء مرحلة خروج المغلوب؟ أول 2 من كل مجموعة + المتأهلون مباشرة — قرعة عشوائية.')) return;
+        try {
+            await api.post(`/teacher/courses/${courseId}/competitions/${comp.id}/start-knockout`);
+            await loadAll();
+            alert('تم بدء مرحلة خروج المغلوب');
+        } catch (e) {
+            alert(e.response?.data?.message || 'تأكد من اكتمال مباريات المجموعات أولاً');
+        }
+    };
+
+    const formatTime = (sec) => {
+        if (!sec && sec !== 0) return '—';
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${m}:${String(s).padStart(2, '0')}`;
+    };
+
+    const phaseLabel = (phase) => ({
+        groups: 'دور المجموعات',
+        knockout: 'خروج المغلوب',
+        finished: 'انتهت',
+        league: 'الدوري',
+    }[phase] || phase);
+
     const renderCompetitionCard = (type, label) => {
         const comp = competitions[type];
         if (!comp) {
@@ -188,9 +234,19 @@ const CourseCompetitionPanel = ({ courseId }) => {
                         </h3>
                         <p className="text-xs text-slate-400 mt-1">
                             {comp.participants?.length || 0} متنافس · {comp.matches?.length || 0} مباراة · {comp.questions?.length || 0} سؤال
+                            · {comp.questions_per_round || 5} سؤال/جولة · {Math.round((comp.time_limit_seconds || 900) / 60)} دقيقة
                         </p>
+                        <p className="text-xs text-indigo-600 font-bold mt-0.5">{phaseLabel(comp.phase)}</p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
+                        {type === 'cup' && comp.phase === 'groups' && (
+                            <button
+                                onClick={() => startKnockout(comp)}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-sm font-bold"
+                            >
+                                بدء خروج المغلوب
+                            </button>
+                        )}
                         <button
                             onClick={() => toggleShowAnswers(comp)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
@@ -212,7 +268,7 @@ const CourseCompetitionPanel = ({ courseId }) => {
                 </div>
 
                 <div>
-                    <h4 className="font-bold text-sm text-slate-600 mb-2">الترتيب (فوز=3 · تعادل=1)</h4>
+                    <h4 className="font-bold text-sm text-slate-600 mb-2">الترتيب (فوز=3 · تعادل=1 · التعادل بالوقت)</h4>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
@@ -221,6 +277,7 @@ const CourseCompetitionPanel = ({ courseId }) => {
                                     <th className="text-right py-2 px-2">الطالب</th>
                                     <th className="text-right py-2 px-2">المجموعة</th>
                                     <th className="text-right py-2 px-2">نقاط</th>
+                                    <th className="text-right py-2 px-2">الوقت</th>
                                     <th className="text-right py-2 px-2">ف/ت/خ</th>
                                 </tr>
                             </thead>
@@ -236,6 +293,7 @@ const CourseCompetitionPanel = ({ courseId }) => {
                                         </td>
                                         <td className="py-2 px-2">{p.direct_advance ? '—' : (p.group_number || '—')}</td>
                                         <td className="py-2 px-2 font-extrabold text-indigo-600">{p.points}</td>
+                                        <td className="py-2 px-2 text-xs text-slate-500">{formatTime(p.total_time_seconds)}</td>
                                         <td className="py-2 px-2 text-xs">{p.wins}/{p.draws}/{p.losses}</td>
                                     </tr>
                                 ))}
@@ -244,17 +302,42 @@ const CourseCompetitionPanel = ({ courseId }) => {
                     </div>
                 </div>
 
+                {type === 'cup' && (
+                    <div>
+                        <h4 className="font-bold text-sm text-slate-600 mb-2">المجموعات</h4>
+                        <div className="grid md:grid-cols-2 gap-3">
+                            {[...new Set((comp.participants || []).map(p => p.group_number).filter(g => g > 0))].sort().map(gn => (
+                                <div key={gn} className="bg-slate-50 rounded-xl p-3">
+                                    <p className="font-bold text-sm mb-2">المجموعة {gn}</p>
+                                    {(comp.participants || [])
+                                        .filter(p => p.group_number === gn)
+                                        .sort((a, b) => b.points - a.points || (a.total_time_seconds || 0) - (b.total_time_seconds || 0))
+                                        .map((p, i) => (
+                                            <div key={p.id} className="flex justify-between text-xs py-1 border-b border-slate-100 last:border-0">
+                                                <span>{i + 1}. {p.student_name}</span>
+                                                <span className="font-bold">{p.points}ن · {formatTime(p.total_time_seconds)}</span>
+                                            </div>
+                                        ))}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {(comp.matches || []).length > 0 && (
                     <div>
                         <h4 className="font-bold text-sm text-slate-600 mb-2">المباريات</h4>
                         <div className="grid gap-2 max-h-48 overflow-y-auto">
                             {comp.matches.map(m => (
                                 <div key={m.id} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-2 text-sm">
-                                    <span>{m.player1_name} vs {m.player2_name}</span>
+                                    <span>
+                                        {m.stage === 'knockout' && <span className="text-xs text-amber-600 ml-1">كأس R{m.knockout_round}</span>}
+                                        {m.player1_name} vs {m.player2_name}
+                                    </span>
                                     <span className="font-bold text-slate-500">
                                         {m.status === 'completed'
                                             ? `${m.player1_score} - ${m.player2_score}${m.is_draw ? ' (تعادل)' : ''}`
-                                            : m.status === 'partial' ? 'جاري...' : 'لم تبدأ'}
+                                            : m.status === 'partial' ? 'جاري...' : m.status === 'bye' ? 'إعفاء' : 'لم تبدأ'}
                                     </span>
                                 </div>
                             ))}
@@ -316,7 +399,7 @@ const CourseCompetitionPanel = ({ courseId }) => {
 
                     <div>
                         <label className="font-bold text-sm flex items-center gap-2 mb-2">
-                            <Users size={16} /> اختيار المتنافسين
+                            <Users size={16} /> طلاب الكورس المشتركين
                         </label>
                         <div className="relative mb-2">
                             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -341,7 +424,32 @@ const CourseCompetitionPanel = ({ courseId }) => {
                                 );
                             })}
                         </div>
-                        <p className="text-xs text-slate-400 mt-1">محدد: {form.student_ids.length}</p>
+                        <p className="text-xs text-slate-400 mt-1">محدد: {form.student_ids.length} من {students.length}</p>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="font-bold text-sm mb-2 block">عدد أسئلة كل جولة</label>
+                            <input
+                                type="number"
+                                min={1}
+                                max={50}
+                                value={form.questions_per_round}
+                                onChange={e => setForm(f => ({ ...f, questions_per_round: e.target.value }))}
+                                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="font-bold text-sm mb-2 block">الوقت الأقصى (دقيقة) — يُسلّم تلقائياً عند انتهائه</label>
+                            <input
+                                type="number"
+                                min={1}
+                                max={180}
+                                value={form.time_limit_minutes}
+                                onChange={e => setForm(f => ({ ...f, time_limit_minutes: e.target.value }))}
+                                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm"
+                            />
+                        </div>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-4">
