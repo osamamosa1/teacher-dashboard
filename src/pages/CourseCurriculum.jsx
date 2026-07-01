@@ -5,9 +5,10 @@ import {
     ChevronLeft, Loader2, PlayCircle, Plus, Layout, Video, FileText,
     CheckCircle, HelpCircle, Award, Clock, Trash2, Edit2,
     List as ListIcon, Layers, Settings, Users, ArrowLeft,
-    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy, MessageCircle
+    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy, MessageCircle, Trophy
 } from 'lucide-react';
 import CourseChatPanel from '../components/CourseChatPanel';
+import CourseCompetitionPanel from '../components/CourseCompetitionPanel';
 import VideoLessonInsightsModal from '../components/VideoLessonInsightsModal';
 
 const CourseCurriculum = () => {
@@ -493,6 +494,12 @@ const CourseCurriculum = () => {
                     Units ({units.length})
                 </button>
                 <button
+                    onClick={() => setActiveTab('competitions')}
+                    className={`flex items-center gap-2 pb-2 transition-all duration-200 ${activeTab === 'competitions' ? 'text-[#0F172A] font-extrabold border-b-2 border-[#0F172A]' : 'text-[#94A3B8] font-bold hover:text-[#0F172A]'}`}
+                >
+                    <Trophy size={16} /> مسابقات
+                </button>
+                <button
                     onClick={() => setActiveTab('settings')}
                     className={`flex items-center gap-2 pb-2 transition-all duration-200 ${activeTab === 'settings' ? 'text-[#0F172A] font-extrabold border-b-2 border-[#0F172A]' : 'text-[#94A3B8] font-bold hover:text-[#0F172A]'}`}
                 >
@@ -572,6 +579,8 @@ const CourseCurriculum = () => {
                     )
                 ) : activeTab === 'chat' ? (
                     <CourseChatPanel courseId={parseInt(courseId, 10)} />
+                ) : activeTab === 'competitions' ? (
+                    <CourseCompetitionPanel courseId={parseInt(courseId, 10)} />
                 ) : activeTab === 'students' ? (
                     studentsLoading ? (
                         <div className="flex items-center justify-center py-20 gap-3 text-[#64748B] font-semibold">
