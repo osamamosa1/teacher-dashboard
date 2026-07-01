@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send, Trash2 } from 'lucide-react';
 import api from '../api/axios';
 
 const initials = (name) => {
@@ -13,7 +13,7 @@ const initials = (name) => {
     .slice(0, 2);
 };
 
-const ChatBubble = ({ message }) => {
+const ChatBubble = ({ message, onDelete }) => {
   const isMine = message.is_mine;
   const isTeacher = message.sender_role === 'teacher';
   const senderName = message.sender_name || '';
@@ -46,7 +46,19 @@ const ChatBubble = ({ message }) => {
       )}
 
       <div className={`max-w-[78%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-        <p className={`text-[10px] font-bold mb-1 px-1 ${nameColor}`}>{displayName}</p>
+        <div className={`flex items-center gap-2 mb-1 px-1 ${isMine ? 'flex-row-reverse' : ''}`}>
+          <p className={`text-[10px] font-bold ${nameColor}`}>{displayName}</p>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => onDelete(message.id)}
+              className="text-red-400 hover:text-red-600 p-0.5"
+              title="Delete message"
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
+        </div>
         <div className={`rounded-2xl px-4 py-3 border shadow-sm ${bubbleClass} ${isMine ? 'rounded-tr-sm' : 'rounded-tl-sm'}`}>
           <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.message}</p>
           {message.created_at && (
@@ -108,6 +120,16 @@ const CourseChatPanel = ({ courseId }) => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const handleDelete = async (messageId) => {
+    if (!window.confirm('Delete this message permanently?')) return;
+    try {
+      await api.delete(`/teacher/courses/${courseId}/messages/${messageId}`);
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete message');
+    }
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
     if (!text.trim() || sending) return;
@@ -145,7 +167,7 @@ const CourseChatPanel = ({ courseId }) => {
             <p className="text-[#94A3B8] font-medium">No messages yet. Say hello to your students!</p>
           </div>
         ) : (
-          messages.map((m) => <ChatBubble key={m.id} message={m} />)
+          messages.map((m) => <ChatBubble key={m.id} message={m} onDelete={handleDelete} />)
         )}
         <div ref={bottomRef} />
       </div>
