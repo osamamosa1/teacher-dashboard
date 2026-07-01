@@ -78,7 +78,12 @@ const CourseChatPanel = ({ courseId }) => {
       const res = await api.get(`/teacher/courses/${courseId}/messages${after}`);
       const list = res.data.data || [];
       if (list.length > 0) {
-        setMessages((prev) => (lastIdRef.current === 0 ? list : [...prev, ...list]));
+        setMessages((prev) => {
+          if (lastIdRef.current === 0) return list;
+          const existingIds = new Set(prev.map((m) => m.id));
+          const newOnes = list.filter((m) => !existingIds.has(m.id));
+          return newOnes.length ? [...prev, ...newOnes] : prev;
+        });
         lastIdRef.current = list[list.length - 1].id;
       } else if (initial) {
         setMessages([]);
@@ -111,7 +116,10 @@ const CourseChatPanel = ({ courseId }) => {
       const res = await api.post(`/teacher/courses/${courseId}/messages`, { message: text.trim() });
       const msg = res.data.data;
       setText('');
-      setMessages((prev) => [...prev, msg]);
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
       lastIdRef.current = msg.id;
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to send message');

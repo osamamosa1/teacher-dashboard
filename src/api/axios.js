@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const instance = axios.create({
-    baseURL: import.meta.env.DEV ? 'https://www.mr-abdelrahman.com/api/v1' : '/api/v1',
+    baseURL: import.meta.env.DEV ? 'https://youtop-academy.work/api/v1' : '/api/v1',
 });
 
 instance.interceptors.request.use((config) => {

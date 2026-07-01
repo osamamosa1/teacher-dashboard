@@ -148,13 +148,17 @@ const ManageStudents = () => {
     };
 
     const fetchStudentDetails = async (studentId) => {
+        if (!studentId) {
+            alert('Invalid student id.');
+            return;
+        }
         setLoading(true);
         try {
             const res = await api.get(`/teacher/students/${studentId}`);
             setSelectedStudentDetails(res.data.data);
             setProfileModalOpen(true);
         } catch (err) {
-            alert('Failed to fetch student details.');
+            alert(err.response?.data?.message || 'Failed to fetch student details.');
         } finally {
             setLoading(false);
         }

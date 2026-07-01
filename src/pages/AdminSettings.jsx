@@ -126,7 +126,7 @@ const AdminSettings = () => {
                                         className="w-full px-4 py-3 rounded-xl border border-[#E2E8F0] focus:ring-2 focus:ring-indigo-500 outline-none font-medium transition-all"
                                         value={settings.app_name}
                                         onChange={e => setSettings({...settings, app_name: e.target.value})}
-                                        placeholder="e.g., MPS Academy"
+                                        placeholder="e.g., YouTop Academy"
                                     />
                                 </div>
                                 <div>
