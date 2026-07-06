@@ -8,8 +8,23 @@ import {
 const normalizeStudent = (s) => ({
     id: s.student_id ?? s.studentId ?? s.id,
     name: s.student_name ?? s.studentName ?? s.name ?? '—',
-    email: s.student_email ?? s.studentEmail ?? s.email ?? '',
+    email: s.student_email ?? s.email ?? '',
 });
+
+const normalizeOption = (o) => ({
+    text: String(o?.text ?? o?.Text ?? o?.option_text ?? ''),
+    is_correct: !!(o?.is_correct ?? o?.isCorrect ?? o?.IsCorrect),
+});
+
+const normalizeQuestionsForEdit = (questions) =>
+    (questions || []).map(q => ({
+        text: String(q?.text ?? q?.Text ?? ''),
+        type: q?.type ?? q?.Type ?? 'mcq',
+        degree: Number(q?.degree ?? q?.Degree ?? 1) || 1,
+        options: (q?.options ?? q?.Options ?? []).length
+            ? (q.options ?? q.Options).map(normalizeOption)
+            : [{ text: '', is_correct: true }, { text: '', is_correct: false }],
+    }));
 
 const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
     const [loading, setLoading] = useState(true);
@@ -200,7 +215,7 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
     const openRoundEditor = (comp, round) => {
         setEditRoundId(round.id);
         setActiveType(comp.type);
-        setEditQuestions(JSON.parse(JSON.stringify(round.questions || [])));
+        setEditQuestions(normalizeQuestionsForEdit(round.questions || []));
         setCopyExamForm({ lesson: [], standalone: [] });
     };
 
@@ -212,7 +227,11 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
             await api.put(`/teacher/courses/${courseId}/competitions/${comp.id}/rounds/${editRoundId}/questions`, {
                 questions: editQuestions.map((q, i) => ({
                     id: 0, text: q.text, type: q.type || 'mcq', degree: q.degree || 1, sort_order: i,
-                    options: (q.options || []).map(o => ({ id: 0, text: o.text, is_correct: !!o.is_correct })),
+                    options: (q.options || []).map(o => ({
+                        id: 0,
+                        text: String(o.text ?? ''),
+                        is_correct: !!(o.is_correct ?? o.isCorrect),
+                    })),
                 })),
             });
             setEditQuestions(null);
@@ -240,7 +259,7 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
             await loadAll();
             const updated = (await api.get(`/teacher/courses/${courseId}/competitions`)).data?.data?.[activeType];
             const round = updated?.rounds?.find(r => r.id === editRoundId);
-            if (round) setEditQuestions(JSON.parse(JSON.stringify(round.questions || [])));
+            if (round) setEditQuestions(normalizeQuestionsForEdit(round.questions || []));
             alert('تم نسخ الأسئلة لهذه الجولة فقط');
         } catch (e) {
             alert(e.response?.data?.message || 'فشل النسخ');
@@ -317,6 +336,51 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
 
     const deleteQuestion = (idx) => {
         setEditQuestions(qs => qs.filter((_, i) => i !== idx));
+    };
+
+    const updateQuestionField = (qi, field, value) => {
+        setEditQuestions(qs => {
+            const copy = [...qs];
+            copy[qi] = { ...copy[qi], [field]: value };
+            return copy;
+        });
+    };
+
+    const updateOption = (qi, oi, field, value) => {
+        setEditQuestions(qs => {
+            const copy = [...qs];
+            const options = [...(copy[qi].options || [])];
+            if (field === 'is_correct' && value) {
+                options.forEach((opt, j) => { options[j] = { ...opt, is_correct: j === oi }; });
+            } else {
+                options[oi] = { ...options[oi], [field]: value };
+            }
+            copy[qi] = { ...copy[qi], options };
+            return copy;
+        });
+    };
+
+    const addOption = (qi) => {
+        setEditQuestions(qs => {
+            const copy = [...qs];
+            copy[qi] = {
+                ...copy[qi],
+                options: [...(copy[qi].options || []), { text: '', is_correct: false }],
+            };
+            return copy;
+        });
+    };
+
+    const deleteOption = (qi, oi) => {
+        setEditQuestions(qs => {
+            const copy = [...qs];
+            const options = (copy[qi].options || []).filter((_, j) => j !== oi);
+            if (options.length && !options.some(o => o.is_correct)) {
+                options[0] = { ...options[0], is_correct: true };
+            }
+            copy[qi] = { ...copy[qi], options: options.length >= 2 ? options : copy[qi].options };
+            return copy;
+        });
     };
 
     const startKnockout = async (comp) => {
@@ -686,7 +750,7 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
 
             {editQuestions && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+                    <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl">
                         <div className="flex items-center justify-between p-4 border-b">
                             <h3 className="font-extrabold">أسئلة الجولة (لا تؤثر على الامتحان الأصلي)</h3>
                             <button onClick={() => { setEditQuestions(null); setEditRoundId(null); }}><X size={20} /></button>
@@ -709,46 +773,77 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
                             </div>
                             <button onClick={() => copyExamToRound(competitions[activeType])} className="text-xs font-bold text-indigo-600">نسخ المحدد للجولة</button>
                         </div>
-                        <div className="overflow-y-auto flex-1 p-4 space-y-4">
+                        <div className="overflow-y-auto flex-1 p-4 space-y-5">
                             {editQuestions.map((q, qi) => (
-                                <div key={qi} className="border rounded-xl p-4 space-y-2">
-                                    <div className="flex gap-2">
-                                        <input
-                                            className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                                <div key={qi} className="border-2 border-slate-100 rounded-2xl p-5 space-y-4 bg-slate-50/50">
+                                    <div className="flex items-start gap-3">
+                                        <span className="shrink-0 w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black">
+                                            {qi + 1}
+                                        </span>
+                                        <textarea
+                                            className="flex-1 min-h-[72px] w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white resize-y focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
                                             value={q.text}
-                                            onChange={e => {
-                                                const copy = [...editQuestions];
-                                                copy[qi].text = e.target.value;
-                                                setEditQuestions(copy);
-                                            }}
-                                            placeholder="نص السؤال"
+                                            onChange={e => updateQuestionField(qi, 'text', e.target.value)}
+                                            placeholder="نص السؤال..."
+                                            rows={2}
                                         />
-                                        <button onClick={() => deleteQuestion(qi)} className="text-red-500 p-2"><Trash2 size={16} /></button>
+                                        <button
+                                            type="button"
+                                            onClick={() => deleteQuestion(qi)}
+                                            className="shrink-0 p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                                            title="حذف السؤال"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
                                     </div>
-                                    {(q.options || []).map((o, oi) => (
-                                        <div key={oi} className="flex gap-2 items-center">
-                                            <input
-                                                type="radio"
-                                                name={`correct-${qi}`}
-                                                checked={!!o.is_correct}
-                                                onChange={() => {
-                                                    const copy = [...editQuestions];
-                                                    copy[qi].options = copy[qi].options.map((opt, j) => ({ ...opt, is_correct: j === oi }));
-                                                    setEditQuestions(copy);
-                                                }}
-                                            />
-                                            <input
-                                                className="flex-1 border rounded-lg px-3 py-1.5 text-sm"
-                                                value={o.text}
-                                                onChange={e => {
-                                                    const copy = [...editQuestions];
-                                                    copy[qi].options[oi].text = e.target.value;
-                                                    setEditQuestions(copy);
-                                                }}
-                                                placeholder={`اختيار ${oi + 1}`}
-                                            />
-                                        </div>
-                                    ))}
+
+                                    <div className="pr-11 space-y-3">
+                                        <p className="text-xs font-bold text-slate-500">الاختيارات — حدّد الإجابة الصحيحة</p>
+                                        {(q.options || []).map((o, oi) => (
+                                            <div
+                                                key={oi}
+                                                className={`flex items-start gap-3 p-3 rounded-xl border-2 bg-white transition-colors ${
+                                                    o.is_correct ? 'border-emerald-400 bg-emerald-50/60' : 'border-slate-200'
+                                                }`}
+                                            >
+                                                <label className="flex items-center gap-2 shrink-0 pt-2 cursor-pointer" title="الإجابة الصحيحة">
+                                                    <input
+                                                        type="radio"
+                                                        name={`correct-${qi}`}
+                                                        checked={!!o.is_correct}
+                                                        onChange={() => updateOption(qi, oi, 'is_correct', true)}
+                                                        className="w-4 h-4 text-emerald-600"
+                                                    />
+                                                    <span className={`text-xs font-bold whitespace-nowrap ${o.is_correct ? 'text-emerald-700' : 'text-slate-400'}`}>
+                                                        {o.is_correct ? '✓ صح' : 'اختيار'}
+                                                    </span>
+                                                </label>
+                                                <textarea
+                                                    className="flex-1 min-w-0 w-full min-h-[44px] border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white resize-y focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                    value={o.text ?? ''}
+                                                    onChange={e => updateOption(qi, oi, 'text', e.target.value)}
+                                                    placeholder={`نص الاختيار ${oi + 1}...`}
+                                                    rows={2}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => deleteOption(qi, oi)}
+                                                    disabled={(q.options || []).length <= 2}
+                                                    className="shrink-0 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed"
+                                                    title="حذف الاختيار"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            onClick={() => addOption(qi)}
+                                            className="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-800 px-2 py-1"
+                                        >
+                                            <Plus size={16} /> إضافة اختيار
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                             <button onClick={addQuestion} className="w-full py-2 border-2 border-dashed rounded-xl text-sm font-bold text-indigo-600">
