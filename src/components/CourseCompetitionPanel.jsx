@@ -5,7 +5,13 @@ import {
     Trash2, Save, ChevronDown, ChevronUp, X
 } from 'lucide-react';
 
-const CourseCompetitionPanel = ({ courseId }) => {
+const normalizeStudent = (s) => ({
+    id: s.student_id ?? s.studentId ?? s.id,
+    name: s.student_name ?? s.studentName ?? s.name ?? '—',
+    email: s.student_email ?? s.studentEmail ?? s.email ?? '',
+});
+
+const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
     const [loading, setLoading] = useState(true);
     const [competitions, setCompetitions] = useState({ cup: null, league: null });
     const [students, setStudents] = useState([]);
@@ -30,21 +36,51 @@ const CourseCompetitionPanel = ({ courseId }) => {
         loadAll();
     }, [courseId]);
 
+    useEffect(() => {
+        if (studentsProp?.length) {
+            setStudents(studentsProp);
+        }
+    }, [studentsProp]);
+
+    const loadStudents = async () => {
+        try {
+            const res = await api.get(`/teacher/courses/${courseId}/students`);
+            const raw = res.data?.data ?? res.data ?? [];
+            setStudents(Array.isArray(raw) ? raw : []);
+        } catch (e) {
+            console.error('Failed to load course students', e);
+            setStudents([]);
+        }
+    };
+
     const loadAll = async () => {
         setLoading(true);
-        try {
-            const [compRes, studRes, examRes, lessonsRes] = await Promise.all([
-                api.get(`/teacher/courses/${courseId}/competitions`),
-                api.get(`/teacher/courses/${courseId}/students`),
-                api.get(`/teacher/courses/${courseId}/competitions/available-exams`).catch(() => ({ data: {} })),
-                api.get(`/teacher/courses/${courseId}/lessons`).catch(() => ({ data: {} })),
-            ]);
-            setCompetitions(compRes.data?.data || { cup: null, league: null });
-            setStudents(studRes.data?.data || []);
+        await loadStudents();
 
-            let exams = examRes.data?.data || { course_exams: [], standalone_exams: [] };
-            if (!exams.course_exams?.length && lessonsRes.data?.data) {
-                const fromLessons = (lessonsRes.data.data || [])
+        try {
+            const [compResult, examResult, lessonsResult] = await Promise.allSettled([
+                api.get(`/teacher/courses/${courseId}/competitions`),
+                api.get(`/teacher/courses/${courseId}/competitions/available-exams`),
+                api.get(`/teacher/courses/${courseId}/lessons`),
+            ]);
+
+            if (compResult.status === 'fulfilled') {
+                setCompetitions(compResult.value.data?.data || { cup: null, league: null });
+            } else {
+                console.error('Competitions load failed', compResult.reason);
+                setCompetitions({ cup: null, league: null });
+            }
+
+            let exams = examResult.status === 'fulfilled'
+                ? (examResult.value.data?.data || { course_exams: [], standalone_exams: [] })
+                : { course_exams: [], standalone_exams: [] };
+
+            const lessonsData = lessonsResult.status === 'fulfilled'
+                ? (lessonsResult.value.data?.data || [])
+                : [];
+
+            if (!exams.course_exams?.length && lessonsData.length) {
+                const fromLessons = lessonsData
                     .filter(l => (l.type || '').toLowerCase() === 'exam')
                     .map(l => ({
                         id: l.id,
@@ -64,10 +100,11 @@ const CourseCompetitionPanel = ({ courseId }) => {
 
     const filteredStudents = useMemo(() => {
         const q = studentSearch.trim().toLowerCase();
-        if (!q) return students;
-        return students.filter(s =>
-            (s.student_name || s.name || '').toLowerCase().includes(q) ||
-            (s.student_email || s.email || '').toLowerCase().includes(q)
+        const list = students.map(normalizeStudent);
+        if (!q) return list;
+        return list.filter(s =>
+            s.name.toLowerCase().includes(q) ||
+            s.email.toLowerCase().includes(q)
         );
     }, [students, studentSearch]);
 
@@ -81,7 +118,7 @@ const CourseCompetitionPanel = ({ courseId }) => {
     };
 
     const toggleAllFiltered = (select) => {
-        const ids = filteredStudents.map(s => s.student_id || s.id);
+        const ids = filteredStudents.map(s => s.id);
         setForm(f => {
             if (select) {
                 const merged = new Set([...f.student_ids, ...ids]);
@@ -93,11 +130,13 @@ const CourseCompetitionPanel = ({ courseId }) => {
     };
 
     const filteredSelectedCount = useMemo(() => {
-        const ids = new Set(filteredStudents.map(s => s.student_id || s.id));
+        const ids = new Set(filteredStudents.map(s => s.id));
         return form.student_ids.filter(id => ids.has(id)).length;
     }, [filteredStudents, form.student_ids]);
 
     const allFilteredSelected = filteredStudents.length > 0 && filteredSelectedCount === filteredStudents.length;
+
+    const enrolledCount = students.length;
 
     const toggleLessonExam = (id) => {
         setForm(f => ({
@@ -526,7 +565,7 @@ const CourseCompetitionPanel = ({ courseId }) => {
                                     <p className="text-xs text-slate-500">
                                         {studentSearch.trim()
                                             ? `${filteredStudents.length} نتيجة · ${filteredSelectedCount} محدد`
-                                            : `${students.length} طالب · ${form.student_ids.length} محدد`}
+                                            : `${enrolledCount} طالب · ${form.student_ids.length} محدد`}
                                     </p>
                                     {filteredStudents.length > 0 && (
                                         <button
@@ -543,19 +582,16 @@ const CourseCompetitionPanel = ({ courseId }) => {
                             <div className="max-h-64 overflow-y-auto bg-white">
                                 {filteredStudents.length === 0 ? (
                                     <p className="text-sm text-slate-400 text-center py-8 px-4">
-                                        {students.length === 0
+                                        {enrolledCount === 0
                                             ? 'لا يوجد طلاب مشتركين في الكورس'
                                             : 'لا توجد نتائج مطابقة للبحث'}
                                     </p>
                                 ) : (
                                     filteredStudents.map(s => {
-                                        const id = s.student_id || s.id;
-                                        const name = s.student_name || s.name || '—';
-                                        const email = s.student_email || s.email || '';
-                                        const selected = form.student_ids.includes(id);
+                                        const selected = form.student_ids.includes(s.id);
                                         return (
                                             <label
-                                                key={id}
+                                                key={s.id}
                                                 className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-slate-100 last:border-b-0 transition-colors ${
                                                     selected ? 'bg-indigo-50 hover:bg-indigo-100/80' : 'hover:bg-slate-50'
                                                 }`}
@@ -563,13 +599,13 @@ const CourseCompetitionPanel = ({ courseId }) => {
                                                 <input
                                                     type="checkbox"
                                                     checked={selected}
-                                                    onChange={() => toggleStudent(id)}
+                                                    onChange={() => toggleStudent(s.id)}
                                                     className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 shrink-0"
                                                 />
                                                 <div className="flex-1 min-w-0 text-right">
-                                                    <p className="text-sm font-semibold text-slate-800 truncate">{name}</p>
-                                                    {email && (
-                                                        <p className="text-xs text-slate-400 truncate mt-0.5">{email}</p>
+                                                    <p className="text-sm font-semibold text-slate-800 truncate">{s.name}</p>
+                                                    {s.email && (
+                                                        <p className="text-xs text-slate-400 truncate mt-0.5">{s.email}</p>
                                                     )}
                                                 </div>
                                             </label>
@@ -579,7 +615,7 @@ const CourseCompetitionPanel = ({ courseId }) => {
                             </div>
 
                             <div className="px-4 py-2 border-t border-slate-200 bg-slate-50 text-xs text-slate-500">
-                                محدد: <span className="font-bold text-indigo-600">{form.student_ids.length}</span> من {students.length} طالب
+                                محدد: <span className="font-bold text-indigo-600">{form.student_ids.length}</span> من {enrolledCount} طالب
                             </div>
                         </div>
                     </div>

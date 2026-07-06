@@ -299,7 +299,7 @@ const ManageCourses = () => {
                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Students</span>
                                             <div className="flex items-center gap-1.5 text-slate-900 font-bold">
                                                 <Users size={16} className="text-indigo-500" />
-                                                <span>{course.enrollments_count || 0}</span>
+                                                <span>{course.enrollments_count ?? course.enrollmentsCount ?? 0}</span>
                                             </div>
                                         </div>
                                         <div className="w-[1px] h-8 bg-slate-200" />

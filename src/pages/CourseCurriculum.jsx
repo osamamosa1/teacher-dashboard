@@ -71,10 +71,11 @@ const CourseCurriculum = () => {
 
     useEffect(() => {
         fetchCurriculum();
+        fetchStudents();
     }, [courseId]);
 
     useEffect(() => {
-        if (activeTab === 'students') {
+        if (activeTab === 'students' && students.length === 0 && !studentsLoading) {
             fetchStudents();
         }
     }, [activeTab, courseId]);
@@ -580,7 +581,7 @@ const CourseCurriculum = () => {
                 ) : activeTab === 'chat' ? (
                     <CourseChatPanel courseId={parseInt(courseId, 10)} />
                 ) : activeTab === 'competitions' ? (
-                    <CourseCompetitionPanel courseId={parseInt(courseId, 10)} />
+                    <CourseCompetitionPanel courseId={parseInt(courseId, 10)} students={students} />
                 ) : activeTab === 'students' ? (
                     studentsLoading ? (
                         <div className="flex items-center justify-center py-20 gap-3 text-[#64748B] font-semibold">
