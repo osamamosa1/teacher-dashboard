@@ -15,13 +15,13 @@ const CourseCompetitionPanel = ({ courseId }) => {
     const [showForm, setShowForm] = useState(false);
     const [studentSearch, setStudentSearch] = useState('');
     const [editQuestions, setEditQuestions] = useState(null);
+    const [editRoundId, setEditRoundId] = useState(null);
+    const [copyExamForm, setCopyExamForm] = useState({ lesson: [], standalone: [] });
     const [activeType, setActiveType] = useState('league');
 
     const [form, setForm] = useState({
         type: 'league',
         student_ids: [],
-        lesson_exam_ids: [],
-        standalone_exam_ids: [],
         questions_per_round: 5,
         time_limit_minutes: 15,
     });
@@ -103,27 +103,18 @@ const CourseCompetitionPanel = ({ courseId }) => {
             alert('اختر طالبين على الأقل');
             return;
         }
-        if (!form.lesson_exam_ids.length && !form.standalone_exam_ids.length) {
-            alert('اختر امتحان واحد على الأقل لنسخ الأسئلة');
-            return;
-        }
         setCreating(true);
         try {
             await api.post(`/teacher/courses/${courseId}/competitions`, {
                 type: form.type,
                 student_ids: form.student_ids,
-                lesson_exam_ids: form.lesson_exam_ids,
-                standalone_exam_ids: form.standalone_exam_ids,
                 questions_per_round: Number(form.questions_per_round) || 5,
                 time_limit_seconds: (Number(form.time_limit_minutes) || 15) * 60,
             });
             setShowForm(false);
-            setForm({
-                type: 'league', student_ids: [], lesson_exam_ids: [], standalone_exam_ids: [],
-                questions_per_round: 5, time_limit_minutes: 15,
-            });
+            setForm({ type: 'league', student_ids: [], questions_per_round: 5, time_limit_minutes: 15 });
             await loadAll();
-            alert('تم إنشاء المسابقة بنجاح. المسابقة القديمة من نفس النوع تم حذفها.');
+            alert('تم إنشاء المسابقة. أضف أسئلة الجولة 1 ثم فعّلها.');
         } catch (e) {
             alert(e.response?.data?.message || 'فشل إنشاء المسابقة');
         } finally {
@@ -142,39 +133,116 @@ const CourseCompetitionPanel = ({ courseId }) => {
         }
     };
 
-    const openQuestionEditor = (comp) => {
-        setEditQuestions(JSON.parse(JSON.stringify(comp.questions || [])));
+    const openRoundEditor = (comp, round) => {
+        setEditRoundId(round.id);
         setActiveType(comp.type);
+        setEditQuestions(JSON.parse(JSON.stringify(round.questions || [])));
+        setCopyExamForm({ lesson: [], standalone: [] });
     };
 
     const saveQuestions = async () => {
         const comp = competitions[activeType];
-        if (!comp) return;
+        if (!comp || !editRoundId) return;
         setSaving(true);
         try {
-            await api.put(`/teacher/courses/${courseId}/competitions/${comp.id}/questions`, {
+            await api.put(`/teacher/courses/${courseId}/competitions/${comp.id}/rounds/${editRoundId}/questions`, {
                 questions: editQuestions.map((q, i) => ({
-                    id: 0,
-                    text: q.text,
-                    type: q.type || 'mcq',
-                    degree: q.degree || 1,
-                    sort_order: i,
-                    options: (q.options || []).map(o => ({
-                        id: 0,
-                        text: o.text,
-                        is_correct: !!o.is_correct,
-                    })),
+                    id: 0, text: q.text, type: q.type || 'mcq', degree: q.degree || 1, sort_order: i,
+                    options: (q.options || []).map(o => ({ id: 0, text: o.text, is_correct: !!o.is_correct })),
                 })),
             });
             setEditQuestions(null);
+            setEditRoundId(null);
             await loadAll();
-            alert('تم حفظ الأسئلة');
+            alert('تم حفظ أسئلة الجولة');
         } catch (e) {
             alert('فشل حفظ الأسئلة');
         } finally {
             setSaving(false);
         }
     };
+
+    const copyExamToRound = async (comp) => {
+        if (!editRoundId) return;
+        if (!copyExamForm.lesson.length && !copyExamForm.standalone.length) {
+            alert('اختر امتحان للنسخ');
+            return;
+        }
+        try {
+            await api.post(`/teacher/courses/${courseId}/competitions/${comp.id}/rounds/${editRoundId}/copy-from-exam`, {
+                lesson_exam_ids: copyExamForm.lesson,
+                standalone_exam_ids: copyExamForm.standalone,
+            });
+            await loadAll();
+            const updated = (await api.get(`/teacher/courses/${courseId}/competitions`)).data?.data?.[activeType];
+            const round = updated?.rounds?.find(r => r.id === editRoundId);
+            if (round) setEditQuestions(JSON.parse(JSON.stringify(round.questions || [])));
+            alert('تم نسخ الأسئلة لهذه الجولة فقط');
+        } catch (e) {
+            alert(e.response?.data?.message || 'فشل النسخ');
+        }
+    };
+
+    const activateRound = async (comp, roundId) => {
+        if (!window.confirm('تفعيل هذه الجولة؟ الطلاب يقدروا يلعبوا فوراً.')) return;
+        try {
+            await api.post(`/teacher/courses/${courseId}/competitions/${comp.id}/rounds/${roundId}/activate`);
+            await loadAll();
+            alert('تم تفعيل الجولة');
+        } catch (e) {
+            alert(e.response?.data?.message || 'أضف أسئلة أولاً');
+        }
+    };
+
+    const startNextRound = async (comp) => {
+        if (!window.confirm('إغلاق الجولة الحالية؟ من لم يسلّم = 0. ثم إنشاء جولة جديدة.')) return;
+        try {
+            await api.post(`/teacher/courses/${courseId}/competitions/${comp.id}/rounds/next`);
+            await loadAll();
+            alert('تم إغلاق الجولة وإنشاء جولة جديدة (مسودة). أضف أسئلتها ثم فعّلها.');
+        } catch (e) {
+            alert(e.response?.data?.message || 'فشل');
+        }
+    };
+
+    const addRound = async (comp) => {
+        try {
+            await api.post(`/teacher/courses/${courseId}/competitions/${comp.id}/rounds`, {
+                questions_per_round: comp.questions_per_round || 5,
+                time_limit_seconds: comp.time_limit_seconds || 900,
+            });
+            await loadAll();
+        } catch (e) {
+            alert('فشل إضافة جولة');
+        }
+    };
+
+    const finalizeMatches = async (comp) => {
+        if (!window.confirm('إنهاء المباريات وحساب النقاط من المجموع التراكمي؟')) return;
+        try {
+            await api.post(`/teacher/courses/${courseId}/competitions/${comp.id}/finalize-matches`);
+            await loadAll();
+            alert('تم إنهاء المباريات');
+        } catch (e) {
+            alert(e.response?.data?.message || 'فشل');
+        }
+    };
+
+    const updateRoundSettings = async (comp, roundId, field, value) => {
+        try {
+            const round = comp.rounds?.find(r => r.id === roundId);
+            if (!round) return;
+            await api.put(`/teacher/courses/${courseId}/competitions/${comp.id}/rounds/${roundId}/settings`, {
+                questions_per_round: field === 'q' ? Number(value) : round.questions_per_round,
+                time_limit_seconds: field === 't' ? Number(value) * 60 : round.time_limit_seconds,
+            });
+            await loadAll();
+        } catch (e) {
+            alert('فشل تحديث الإعدادات');
+        }
+    };
+
+    const roundStatusLabel = (s) => ({ draft: 'مسودة', active: 'نشطة', closed: 'منتهية' }[s] || s);
 
     const addQuestion = () => {
         setEditQuestions(qs => [...(qs || []), {
@@ -236,34 +304,57 @@ const CourseCompetitionPanel = ({ courseId }) => {
                             {comp.participants?.length || 0} متنافس · {comp.matches?.length || 0} مباراة · {comp.questions?.length || 0} سؤال
                             · {comp.questions_per_round || 5} سؤال/جولة · {Math.round((comp.time_limit_seconds || 900) / 60)} دقيقة
                         </p>
-                        <p className="text-xs text-indigo-600 font-bold mt-0.5">{phaseLabel(comp.phase)}</p>
+                        <p className="text-xs text-indigo-600 font-bold mt-0.5">
+                            {phaseLabel(comp.phase)}
+                            {comp.active_round && ` · الجولة ${comp.active_round.round_number} نشطة`}
+                        </p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
+                        <button onClick={() => addRound(comp)} className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold">
+                            + جولة جديدة
+                        </button>
+                        <button onClick={() => startNextRound(comp)} className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-bold">
+                            الجولة التالية
+                        </button>
+                        <button onClick={() => finalizeMatches(comp)} className="px-4 py-2 rounded-xl bg-slate-700 text-white text-sm font-bold">
+                            إنهاء المباريات
+                        </button>
                         {type === 'cup' && comp.phase === 'groups' && (
-                            <button
-                                onClick={() => startKnockout(comp)}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-sm font-bold"
-                            >
+                            <button onClick={() => startKnockout(comp)} className="px-4 py-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-sm font-bold">
                                 بدء خروج المغلوب
                             </button>
                         )}
-                        <button
-                            onClick={() => toggleShowAnswers(comp)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                                comp.allow_show_answers
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    : 'bg-red-50 text-red-700 border border-red-200'
-                            }`}
-                        >
+                        <button onClick={() => toggleShowAnswers(comp)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold ${comp.allow_show_answers ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
                             {comp.allow_show_answers ? <Eye size={16} /> : <EyeOff size={16} />}
-                            {comp.allow_show_answers ? 'سماح — الإجابات ظاهرة' : 'منع — الإجابات مخفية'}
+                            {comp.allow_show_answers ? 'إظهار الإجابات' : 'إخفاء الإجابات'}
                         </button>
-                        <button
-                            onClick={() => openQuestionEditor(comp)}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 text-sm font-bold"
-                        >
-                            <HelpCircle size={16} /> تعديل الأسئلة
-                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 className="font-bold text-sm text-slate-600 mb-2">الجولات</h4>
+                    <div className="space-y-2">
+                        {(comp.rounds || []).map(round => (
+                            <div key={round.id} className={`flex flex-wrap items-center gap-3 p-3 rounded-xl border ${round.status === 'active' ? 'border-indigo-300 bg-indigo-50' : 'border-slate-100 bg-slate-50'}`}>
+                                <span className="font-bold text-sm">جولة {round.round_number}</span>
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${round.status === 'active' ? 'bg-indigo-600 text-white' : round.status === 'closed' ? 'bg-slate-400 text-white' : 'bg-white text-slate-600 border'}`}>
+                                    {roundStatusLabel(round.status)}
+                                </span>
+                                <span className="text-xs text-slate-500">{round.questions_count || 0} سؤال · {round.questions_per_round} يظهر · {Math.round((round.time_limit_seconds || 900) / 60)} د</span>
+                                {round.status === 'draft' && (
+                                    <>
+                                        <input type="number" min={1} defaultValue={round.questions_per_round} onBlur={e => updateRoundSettings(comp, round.id, 'q', e.target.value)} className="w-16 text-xs border rounded px-2 py-1" title="عدد الأسئلة" />
+                                        <input type="number" min={1} defaultValue={Math.round((round.time_limit_seconds || 900) / 60)} onBlur={e => updateRoundSettings(comp, round.id, 't', e.target.value)} className="w-16 text-xs border rounded px-2 py-1" title="دقائق" />
+                                        <button onClick={() => openRoundEditor(comp, round)} className="text-xs font-bold text-indigo-600 px-2 py-1 bg-white rounded-lg border">أسئلة الجولة</button>
+                                        <button onClick={() => activateRound(comp, round.id)} className="text-xs font-bold text-white px-3 py-1 bg-indigo-600 rounded-lg">تفعيل</button>
+                                    </>
+                                )}
+                                {round.status === 'closed' && (
+                                    <button onClick={() => openRoundEditor(comp, round)} className="text-xs font-bold text-slate-500 px-2 py-1">عرض الأسئلة</button>
+                                )}
+                            </div>
+                        ))}
+                        {!comp.rounds?.length && <p className="text-xs text-slate-400">لا توجد جولات بعد</p>}
                     </div>
                 </div>
 
@@ -392,9 +483,7 @@ const CourseCompetitionPanel = ({ courseId }) => {
                     </div>
 
                     <p className="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl">
-                        {form.type === 'league'
-                            ? 'الدوري: كل طالب يواجه كل الطلاب الآخرين. الفوز 3 نقاط، التعادل 1.'
-                            : 'الكأس: مجموعات من 4. الزيادة 1-2 يتأهلون مباشرة. أكثر من 2 يُكوَّنون مجموعة. كل واحد يواجه زملاء مجموعته.'}
+                        بعد اختيار الطلاب، أضف أسئلة كل جولة على حدة (نسخ من امتحان أو يدوي) ثم فعّل الجولة.
                     </p>
 
                     <div>
@@ -452,33 +541,6 @@ const CourseCompetitionPanel = ({ courseId }) => {
                         </div>
                     </div>
 
-                    <div className="grid md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="font-bold text-sm mb-2 block">امتحانات الكورس (نسخ الأسئلة)</label>
-                            <div className="max-h-32 overflow-y-auto border rounded-xl divide-y">
-                                {(availableExams.course_exams || []).map(ex => (
-                                    <label key={ex.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-slate-50">
-                                        <input type="checkbox" checked={form.lesson_exam_ids.includes(ex.id)} onChange={() => toggleLessonExam(ex.id)} />
-                                        {ex.title} ({ex.questions_count} س)
-                                    </label>
-                                ))}
-                                {!availableExams.course_exams?.length && <p className="p-3 text-xs text-slate-400">لا توجد امتحانات في الكورس</p>}
-                            </div>
-                        </div>
-                        <div>
-                            <label className="font-bold text-sm mb-2 block">امتحانات مستقلة</label>
-                            <div className="max-h-32 overflow-y-auto border rounded-xl divide-y">
-                                {(availableExams.standalone_exams || []).map(ex => (
-                                    <label key={ex.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-slate-50">
-                                        <input type="checkbox" checked={form.standalone_exam_ids.includes(ex.id)} onChange={() => toggleStandaloneExam(ex.id)} />
-                                        {ex.title} ({ex.questions_count} س)
-                                    </label>
-                                ))}
-                                {!availableExams.standalone_exams?.length && <p className="p-3 text-xs text-slate-400">لا توجد امتحانات مستقلة</p>}
-                            </div>
-                        </div>
-                    </div>
-
                     <div className="flex gap-3">
                         <button
                             onClick={handleCreate}
@@ -516,8 +578,26 @@ const CourseCompetitionPanel = ({ courseId }) => {
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
                         <div className="flex items-center justify-between p-4 border-b">
-                            <h3 className="font-extrabold">تعديل أسئلة المسابقة</h3>
-                            <button onClick={() => setEditQuestions(null)}><X size={20} /></button>
+                            <h3 className="font-extrabold">أسئلة الجولة (لا تؤثر على الامتحان الأصلي)</h3>
+                            <button onClick={() => { setEditQuestions(null); setEditRoundId(null); }}><X size={20} /></button>
+                        </div>
+                        <div className="p-4 border-b bg-slate-50 space-y-2">
+                            <p className="text-xs font-bold text-slate-600">نسخ من امتحان لهذه الجولة فقط:</p>
+                            <div className="grid md:grid-cols-2 gap-2 max-h-24 overflow-y-auto">
+                                {(availableExams.course_exams || []).map(ex => (
+                                    <label key={ex.id} className="flex items-center gap-2 text-xs">
+                                        <input type="checkbox" checked={copyExamForm.lesson.includes(ex.id)} onChange={() => setCopyExamForm(f => ({ ...f, lesson: f.lesson.includes(ex.id) ? f.lesson.filter(x => x !== ex.id) : [...f.lesson, ex.id] }))} />
+                                        {ex.title}
+                                    </label>
+                                ))}
+                                {(availableExams.standalone_exams || []).map(ex => (
+                                    <label key={ex.id} className="flex items-center gap-2 text-xs">
+                                        <input type="checkbox" checked={copyExamForm.standalone.includes(ex.id)} onChange={() => setCopyExamForm(f => ({ ...f, standalone: f.standalone.includes(ex.id) ? f.standalone.filter(x => x !== ex.id) : [...f.standalone, ex.id] }))} />
+                                        {ex.title} (مستقل)
+                                    </label>
+                                ))}
+                            </div>
+                            <button onClick={() => copyExamToRound(competitions[activeType])} className="text-xs font-bold text-indigo-600">نسخ المحدد للجولة</button>
                         </div>
                         <div className="overflow-y-auto flex-1 p-4 space-y-4">
                             {editQuestions.map((q, qi) => (
