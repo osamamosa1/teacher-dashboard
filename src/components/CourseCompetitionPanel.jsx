@@ -37,6 +37,9 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
     const [studentSearch, setStudentSearch] = useState('');
     const [editQuestions, setEditQuestions] = useState(null);
     const [editRoundId, setEditRoundId] = useState(null);
+    const [tieModal, setTieModal] = useState(null);
+    const [matchDetail, setMatchDetail] = useState(null);
+    const [answersView, setAnswersView] = useState(null);
     const [copyExamForm, setCopyExamForm] = useState({ lesson: [], standalone: [] });
     const [activeType, setActiveType] = useState('league');
 
@@ -284,8 +287,61 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
             await loadAll();
             alert('تم إغلاق الجولة وإنشاء جولة جديدة (مسودة). أضف أسئلتها ثم فعّلها.');
         } catch (e) {
-            alert(e.response?.data?.message || 'فشل');
+            const data = e.response?.data;
+            if (data?.code === 'tie_break_required' && data?.ties?.length) {
+                setTieModal({ compId: comp.id, compType: type, ties: data.ties });
+                return;
+            }
+            alert(data?.message || 'فشل');
         }
+    };
+
+    const pickKnockoutWinner = async (compId, matchId, winnerId) => {
+        try {
+            const res = await api.post(`/teacher/courses/${courseId}/competitions/${compId}/matches/${matchId}/pick-winner`, {
+                winner_id: winnerId,
+            });
+            await loadAll();
+            const remaining = res.data?.data?.pending_ties || [];
+            if (remaining.length === 0) {
+                setTieModal(null);
+                alert('تم اختيار الفائز. يمكنك الآن بدء الجولة التالية.');
+            } else {
+                setTieModal(m => m ? { ...m, ties: remaining } : null);
+            }
+        } catch (e) {
+            alert(e.response?.data?.message || 'فشل اختيار الفائز');
+        }
+    };
+
+    const sortTeacherMatches = (matches) => [...(matches || [])].sort((a, b) => {
+        const key = (m) => {
+            if (m.status === 'tie_pending' || m.status === 'partial') return 0;
+            if (m.status === 'pending') return 1;
+            return 2;
+        };
+        return key(a) - key(b);
+    });
+
+    const openMatchDetail = async (comp, match) => {
+        try {
+            const res = await api.get(`/teacher/courses/${courseId}/competitions/${comp.id}/matches/${match.id}`);
+            setMatchDetail({ comp, data: res.data?.data });
+            setAnswersView(null);
+        } catch (e) {
+            alert(e.response?.data?.message || 'فشل تحميل تفاصيل المباراة');
+        }
+    };
+
+    const showPlayerAnswers = (playerKey, playerName) => {
+        if (!matchDetail?.data?.rounds) return;
+        const rounds = matchDetail.data.rounds
+            .map(r => ({
+                round_number: r.round_number,
+                submission: r[`${playerKey}_submission`],
+            }))
+            .filter(r => r.submission?.submitted);
+        setAnswersView({ playerName, rounds });
     };
 
     const addRound = async (comp) => {
@@ -297,17 +353,6 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
             await loadAll();
         } catch (e) {
             alert('فشل إضافة جولة');
-        }
-    };
-
-    const finalizeMatches = async (comp) => {
-        if (!window.confirm('إنهاء المباريات وحساب النقاط من المجموع التراكمي؟')) return;
-        try {
-            await api.post(`/teacher/courses/${courseId}/competitions/${comp.id}/finalize-matches`);
-            await loadAll();
-            alert('تم إنهاء المباريات');
-        } catch (e) {
-            alert(e.response?.data?.message || 'فشل');
         }
     };
 
@@ -444,9 +489,6 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
                         <button onClick={() => startNextRound(comp)} className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-bold">
                             الجولة التالية
                         </button>
-                        <button onClick={() => finalizeMatches(comp)} className="px-4 py-2 rounded-xl bg-slate-700 text-white text-sm font-bold">
-                            إنهاء المباريات
-                        </button>
                         {type === 'cup' && comp.phase === 'groups' && (
                             <button onClick={() => startKnockout(comp)} className="px-4 py-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-sm font-bold">
                                 بدء خروج المغلوب
@@ -543,12 +585,38 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
                     </div>
                 )}
 
+                {(comp.pending_ties || []).length > 0 && (
+                    <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 space-y-3">
+                        <p className="font-bold text-rose-800 text-sm">⚠️ متعادلون في خروج المغلوب — اختر الفائز قبل الجولة التالية</p>
+                        {comp.pending_ties.map(t => (
+                            <div key={t.match_id} className="flex flex-wrap items-center gap-2 bg-white rounded-lg p-3 border border-rose-100">
+                                <span className="text-sm font-bold text-slate-700 flex-1 min-w-[200px]">
+                                    {t.player1_name} ({t.player1_score}ن · {formatTime(t.player1_time_seconds)})
+                                    {' vs '}
+                                    {t.player2_name} ({t.player2_score}ن · {formatTime(t.player2_time_seconds)})
+                                </span>
+                                <button onClick={() => pickKnockoutWinner(comp.id, t.match_id, t.player1_id)} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold">
+                                    فوز {t.player1_name}
+                                </button>
+                                <button onClick={() => pickKnockoutWinner(comp.id, t.match_id, t.player2_id)} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold">
+                                    فوز {t.player2_name}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 {(comp.matches || []).length > 0 && (
                     <div>
                         <h4 className="font-bold text-sm text-slate-600 mb-2">المباريات</h4>
                         <div className="grid gap-2 max-h-48 overflow-y-auto">
-                            {comp.matches.map(m => (
-                                <div key={m.id} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-2 text-sm">
+                            {sortTeacherMatches(comp.matches).map(m => (
+                                <button
+                                    key={m.id}
+                                    type="button"
+                                    onClick={() => openMatchDetail(comp, m)}
+                                    className={`flex items-center justify-between rounded-xl px-4 py-2 text-sm w-full text-right cursor-pointer hover:ring-2 hover:ring-indigo-200 transition ${m.status === 'tie_pending' ? 'bg-rose-50 border border-rose-200' : m.status === 'partial' ? 'bg-indigo-50 border border-indigo-200' : 'bg-slate-50'}`}
+                                >
                                     <span>
                                         {m.stage === 'knockout' && <span className="text-xs text-amber-600 ml-1">كأس R{m.knockout_round}</span>}
                                         {m.player1_name} vs {m.player2_name}
@@ -556,9 +624,10 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
                                     <span className="font-bold text-slate-500">
                                         {m.status === 'completed'
                                             ? `${m.player1_score} - ${m.player2_score}${m.is_draw ? ' (تعادل)' : ''}`
+                                            : m.status === 'tie_pending' ? 'تعادل — اختر الفائز'
                                             : m.status === 'partial' ? 'جاري...' : m.status === 'bye' ? 'إعفاء' : 'لم تبدأ'}
                                     </span>
-                                </div>
+                                </button>
                             ))}
                         </div>
                     </div>
@@ -856,6 +925,90 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
                             </button>
                             <button onClick={() => setEditQuestions(null)} className="px-5 py-2 rounded-xl border font-bold">إلغاء</button>
                         </div>
+                    </div>
+                </div>
+            )}
+            {matchDetail && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <h3 className="font-extrabold text-lg text-slate-800">تفاصيل المباراة</h3>
+                                {matchDetail.data?.match?.stage === 'knockout' && (
+                                    <p className="text-xs text-amber-600 font-bold">كأس · جولة {matchDetail.data.match.knockout_round}</p>
+                                )}
+                            </div>
+                            <button onClick={() => { setMatchDetail(null); setAnswersView(null); }} className="text-slate-400 hover:text-slate-600 font-bold px-2">✕</button>
+                        </div>
+
+                        {answersView ? (
+                            <div className="space-y-4">
+                                <button onClick={() => setAnswersView(null)} className="text-sm font-bold text-indigo-600">← رجوع للمباراة</button>
+                                <h4 className="font-bold text-slate-700">إجابات {answersView.playerName}</h4>
+                                {answersView.rounds.length === 0 ? (
+                                    <p className="text-sm text-slate-500">لا توجد إجابات مسجّلة</p>
+                                ) : answersView.rounds.map(r => (
+                                    <div key={r.round_number} className="border border-slate-200 rounded-xl p-4 space-y-3">
+                                        <p className="font-bold text-sm text-indigo-600">الجولة {r.round_number} — {r.submission.score}/{r.submission.total_mark} · {formatTime(r.submission.time_taken_seconds)}</p>
+                                        {(r.submission.answers || []).map((a, i) => (
+                                            <div key={i} className={`p-3 rounded-lg text-sm ${a.is_correct ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'}`}>
+                                                <p className="font-bold text-slate-800 mb-1">{i + 1}. {a.question_text}</p>
+                                                <p className="text-slate-600">اختيار الطالب: <span className="font-bold">{a.selected_option_text || '—'}</span></p>
+                                                <p className="text-slate-600">الإجابة الصحيحة: <span className="font-bold text-emerald-700">{a.correct_option_text || '—'}</span></p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <>
+                                <div className="grid sm:grid-cols-2 gap-4">
+                                    <div className="bg-slate-50 rounded-xl p-4 text-center">
+                                        <p className="font-extrabold text-slate-800">{matchDetail.data?.match?.player1_name}</p>
+                                        <p className="text-2xl font-black text-indigo-600 my-1">{matchDetail.data?.match?.player1_score ?? 0}</p>
+                                        <p className="text-xs text-slate-500">{formatTime(matchDetail.data?.match?.player1_time_seconds)}</p>
+                                        <button onClick={() => showPlayerAnswers('player1', matchDetail.data?.match?.player1_name)} className="mt-3 w-full py-2 rounded-lg bg-indigo-600 text-white text-sm font-bold">
+                                            عرض الإجابات
+                                        </button>
+                                    </div>
+                                    <div className="bg-slate-50 rounded-xl p-4 text-center">
+                                        <p className="font-extrabold text-slate-800">{matchDetail.data?.match?.player2_name}</p>
+                                        <p className="text-2xl font-black text-indigo-600 my-1">{matchDetail.data?.match?.player2_score ?? 0}</p>
+                                        <p className="text-xs text-slate-500">{formatTime(matchDetail.data?.match?.player2_time_seconds)}</p>
+                                        <button onClick={() => showPlayerAnswers('player2', matchDetail.data?.match?.player2_name)} className="mt-3 w-full py-2 rounded-lg bg-indigo-600 text-white text-sm font-bold">
+                                            عرض الإجابات
+                                        </button>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-slate-400 text-center">كل سؤال = درجة واحدة في المسابقات</p>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+            {tieModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4">
+                        <h3 className="font-extrabold text-lg text-rose-800">اختيار الفائز — تعادل في خروج المغلوب</h3>
+                        <p className="text-sm text-slate-600">تعادل اللاعبان في النقاط ووقت التسليم. اختر من يتأهل قبل بدء الجولة التالية.</p>
+                        {tieModal.ties.map(t => (
+                            <div key={t.match_id} className="border border-slate-200 rounded-xl p-4 space-y-3">
+                                <p className="text-sm font-bold text-center text-slate-700">
+                                    {t.player1_name} ({t.player1_score}ن · {formatTime(t.player1_time_seconds)})
+                                    <span className="text-slate-400 mx-2">vs</span>
+                                    {t.player2_name} ({t.player2_score}ن · {formatTime(t.player2_time_seconds)})
+                                </p>
+                                <div className="flex gap-2">
+                                    <button onClick={() => pickKnockoutWinner(tieModal.compId, t.match_id, t.player1_id)} className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold">
+                                        {t.player1_name}
+                                    </button>
+                                    <button onClick={() => pickKnockoutWinner(tieModal.compId, t.match_id, t.player2_id)} className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold">
+                                        {t.player2_name}
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                        <button onClick={() => setTieModal(null)} className="w-full py-2 rounded-xl border font-bold text-slate-600">إغلاق</button>
                     </div>
                 </div>
             )}
