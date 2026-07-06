@@ -157,15 +157,20 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
     };
 
     const handleCreate = async () => {
-        if (form.student_ids.length < 2) {
+        const studentIds = form.student_ids.map(id => Number(id)).filter(id => Number.isFinite(id) && id > 0);
+        if (studentIds.length < 2) {
             alert('اختر طالبين على الأقل');
+            return;
+        }
+        if (!courseId || Number.isNaN(courseId)) {
+            alert('معرّف الكورس غير صالح');
             return;
         }
         setCreating(true);
         try {
             await api.post(`/teacher/courses/${courseId}/competitions`, {
                 type: form.type,
-                student_ids: form.student_ids,
+                student_ids: studentIds,
                 questions_per_round: Number(form.questions_per_round) || 5,
                 time_limit_seconds: (Number(form.time_limit_minutes) || 15) * 60,
             });
@@ -174,7 +179,8 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
             await loadAll();
             alert('تم إنشاء المسابقة. أضف أسئلة الجولة 1 ثم فعّلها.');
         } catch (e) {
-            alert(e.response?.data?.message || 'فشل إنشاء المسابقة');
+            const msg = e.response?.data?.message || e.response?.data?.detail || e.message || 'فشل إنشاء المسابقة';
+            alert(msg);
         } finally {
             setCreating(false);
         }
