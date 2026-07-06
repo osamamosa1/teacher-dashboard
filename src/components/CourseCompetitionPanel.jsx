@@ -80,6 +80,25 @@ const CourseCompetitionPanel = ({ courseId }) => {
         }));
     };
 
+    const toggleAllFiltered = (select) => {
+        const ids = filteredStudents.map(s => s.student_id || s.id);
+        setForm(f => {
+            if (select) {
+                const merged = new Set([...f.student_ids, ...ids]);
+                return { ...f, student_ids: [...merged] };
+            }
+            const idSet = new Set(ids);
+            return { ...f, student_ids: f.student_ids.filter(x => !idSet.has(x)) };
+        });
+    };
+
+    const filteredSelectedCount = useMemo(() => {
+        const ids = new Set(filteredStudents.map(s => s.student_id || s.id));
+        return form.student_ids.filter(id => ids.has(id)).length;
+    }, [filteredStudents, form.student_ids]);
+
+    const allFilteredSelected = filteredStudents.length > 0 && filteredSelectedCount === filteredStudents.length;
+
     const toggleLessonExam = (id) => {
         setForm(f => ({
             ...f,
@@ -488,32 +507,81 @@ const CourseCompetitionPanel = ({ courseId }) => {
 
                     <div>
                         <label className="font-bold text-sm flex items-center gap-2 mb-2">
-                            <Users size={16} /> طلاب الكورس المشتركين
+                            <Users size={16} /> اختيار الطلاب
                         </label>
-                        <div className="relative mb-2">
-                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                            <input
-                                type="text"
-                                placeholder="بحث بالاسم..."
-                                value={studentSearch}
-                                onChange={e => setStudentSearch(e.target.value)}
-                                className="w-full pr-10 pl-4 py-2.5 border border-slate-200 rounded-xl text-sm"
-                            />
+
+                        <div className="rounded-xl border-2 border-slate-200 bg-slate-50/50 overflow-hidden">
+                            <div className="p-3 border-b border-slate-200 bg-white">
+                                <div className="relative">
+                                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                    <input
+                                        type="text"
+                                        placeholder="بحث بالاسم أو البريد..."
+                                        value={studentSearch}
+                                        onChange={e => setStudentSearch(e.target.value)}
+                                        className="w-full pr-10 pl-4 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between mt-2 gap-2 flex-wrap">
+                                    <p className="text-xs text-slate-500">
+                                        {studentSearch.trim()
+                                            ? `${filteredStudents.length} نتيجة · ${filteredSelectedCount} محدد`
+                                            : `${students.length} طالب · ${form.student_ids.length} محدد`}
+                                    </p>
+                                    {filteredStudents.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleAllFiltered(!allFilteredSelected)}
+                                            className="text-xs font-bold text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded-lg hover:bg-indigo-50"
+                                        >
+                                            {allFilteredSelected ? 'إلغاء تحديد المعروض' : 'تحديد كل المعروض'}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="max-h-64 overflow-y-auto bg-white">
+                                {filteredStudents.length === 0 ? (
+                                    <p className="text-sm text-slate-400 text-center py-8 px-4">
+                                        {students.length === 0
+                                            ? 'لا يوجد طلاب مشتركين في الكورس'
+                                            : 'لا توجد نتائج مطابقة للبحث'}
+                                    </p>
+                                ) : (
+                                    filteredStudents.map(s => {
+                                        const id = s.student_id || s.id;
+                                        const name = s.student_name || s.name || '—';
+                                        const email = s.student_email || s.email || '';
+                                        const selected = form.student_ids.includes(id);
+                                        return (
+                                            <label
+                                                key={id}
+                                                className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-slate-100 last:border-b-0 transition-colors ${
+                                                    selected ? 'bg-indigo-50 hover:bg-indigo-100/80' : 'hover:bg-slate-50'
+                                                }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selected}
+                                                    onChange={() => toggleStudent(id)}
+                                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 shrink-0"
+                                                />
+                                                <div className="flex-1 min-w-0 text-right">
+                                                    <p className="text-sm font-semibold text-slate-800 truncate">{name}</p>
+                                                    {email && (
+                                                        <p className="text-xs text-slate-400 truncate mt-0.5">{email}</p>
+                                                    )}
+                                                </div>
+                                            </label>
+                                        );
+                                    })
+                                )}
+                            </div>
+
+                            <div className="px-4 py-2 border-t border-slate-200 bg-slate-50 text-xs text-slate-500">
+                                محدد: <span className="font-bold text-indigo-600">{form.student_ids.length}</span> من {students.length} طالب
+                            </div>
                         </div>
-                        <div className="max-h-40 overflow-y-auto border border-slate-100 rounded-xl divide-y">
-                            {filteredStudents.map(s => {
-                                const id = s.student_id || s.id;
-                                const name = s.student_name || s.name;
-                                const selected = form.student_ids.includes(id);
-                                return (
-                                    <label key={id} className={`flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-slate-50 ${selected ? 'bg-indigo-50' : ''}`}>
-                                        <input type="checkbox" checked={selected} onChange={() => toggleStudent(id)} />
-                                        <span className="text-sm font-medium">{name}</span>
-                                    </label>
-                                );
-                            })}
-                        </div>
-                        <p className="text-xs text-slate-400 mt-1">محدد: {form.student_ids.length} من {students.length}</p>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-4">
