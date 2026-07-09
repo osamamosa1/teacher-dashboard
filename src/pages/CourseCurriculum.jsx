@@ -67,6 +67,7 @@ const CourseCurriculum = () => {
     const [selectedStudentIds, setSelectedStudentIds] = useState([]);
     const [loadingEligible, setLoadingEligible] = useState(false);
     const [bulkEnrolling, setBulkEnrolling] = useState(false);
+    const [addStudentSearch, setAddStudentSearch] = useState('');
     const [videoInsightsLesson, setVideoInsightsLesson] = useState(null);
 
     useEffect(() => {
@@ -230,6 +231,7 @@ const CourseCurriculum = () => {
         setAddStudentsOpen(true);
         setLoadingEligible(true);
         setSelectedStudentIds([]);
+        setAddStudentSearch('');
         try {
             const res = await api.get('/teacher/courses/0/students');
             const all = res.data.data || [];
@@ -398,6 +400,28 @@ const CourseCurriculum = () => {
     };
 
     const sortedStudents = getSortedStudents(students);
+    const filteredEligibleStudents = eligibleStudents.filter((s) => {
+        const q = addStudentSearch.trim().toLowerCase();
+        if (!q) return true;
+        const name = (s.student_name || '').toLowerCase();
+        const email = (s.student_email || '').toLowerCase();
+        return name.includes(q) || email.includes(q);
+    });
+    const allFilteredEligibleSelected =
+        filteredEligibleStudents.length > 0 &&
+        filteredEligibleStudents.every((s) => selectedStudentIds.includes(s.student_id));
+    const filteredEligibleSelectedCount = filteredEligibleStudents.filter((s) =>
+        selectedStudentIds.includes(s.student_id)
+    ).length;
+    const toggleAllFilteredEligible = (selectAll) => {
+        const ids = filteredEligibleStudents.map((s) => s.student_id);
+        setSelectedStudentIds((prev) => {
+            if (selectAll) {
+                return Array.from(new Set([...prev, ...ids]));
+            }
+            return prev.filter((id) => !ids.includes(id));
+        });
+    };
 
     const getTypeBadge = (type) => {
         switch (type) {
@@ -1034,13 +1058,41 @@ const CourseCurriculum = () => {
                                 <X size={18} />
                             </button>
                         </div>
-                        <div className="max-h-[50vh] overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                        <div className="p-4 border-b border-[#F1F5F9] space-y-3 bg-[#F8FAFC]/60">
+                            <div className="relative">
+                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" size={16} />
+                                <input
+                                    type="text"
+                                    placeholder="ابحث بالاسم أو البريد..."
+                                    value={addStudentSearch}
+                                    onChange={(e) => setAddStudentSearch(e.target.value)}
+                                    className="w-full pr-10 pl-4 py-2.5 border border-[#E2E8F0] rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+                                />
+                            </div>
+                            <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
+                                <p className="text-[#64748B] font-semibold">
+                                    {addStudentSearch.trim()
+                                        ? `${filteredEligibleStudents.length} نتيجة · ${filteredEligibleSelectedCount} محدد`
+                                        : `${eligibleStudents.length} طالب متاح · ${selectedStudentIds.length} محدد`}
+                                </p>
+                                {filteredEligibleStudents.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleAllFilteredEligible(!allFilteredEligibleSelected)}
+                                        className="font-bold text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded-lg hover:bg-indigo-50"
+                                    >
+                                        {allFilteredEligibleSelected ? 'إلغاء تحديد المعروض' : 'تحديد كل المعروض'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <div className="max-h-[42vh] overflow-y-auto p-4 space-y-2 custom-scrollbar">
                             {loadingEligible ? (
                                 <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>
-                            ) : eligibleStudents.length === 0 ? (
+                            ) : filteredEligibleStudents.length === 0 ? (
                                 <p className="text-center text-[#94A3B8] py-10 font-medium">No available students to add</p>
                             ) : (
-                                eligibleStudents.map((s) => (
+                                filteredEligibleStudents.map((s) => (
                                     <label
                                         key={s.student_id}
                                         className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${

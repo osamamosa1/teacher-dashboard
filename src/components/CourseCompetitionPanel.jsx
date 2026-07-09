@@ -4,6 +4,7 @@ import {
     Trophy, Loader2, Plus, Search, Users, HelpCircle, Eye, EyeOff,
     Trash2, Save, ChevronDown, ChevronUp, X
 } from 'lucide-react';
+import KnockoutBracket from './KnockoutBracket';
 
 const normalizeStudent = (s) => ({
     id: s.student_id ?? s.studentId ?? s.id,
@@ -276,20 +277,35 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
             await loadAll();
             alert('تم تفعيل الجولة');
         } catch (e) {
-            alert(e.response?.data?.message || 'أضف أسئلة أولاً');
+            const data = e.response?.data;
+            if (data?.code === 'tie_break_required' && data?.ties?.length) {
+                setTieModal({ compId: comp.id, compType: comp.type, ties: data.ties });
+                return;
+            }
+            alert(data?.message || 'أضف أسئلة أولاً');
         }
     };
 
     const startNextRound = async (comp) => {
-        if (!window.confirm('إغلاق الجولة الحالية؟ من لم يسلّم = 0. ثم إنشاء جولة جديدة.')) return;
+        const finalRound = isCupFinal(comp);
+        if (!finalRound && comp.round_limits && !comp.round_limits.can_add_round && !comp.rounds?.some(r => r.status === 'draft')) {
+            alert(`لا يمكن إضافة جولة — الحد الأقصى ${comp.round_limits.max_rounds} جولة`);
+            return;
+        }
+        const confirmMsg = finalRound
+            ? 'إنهاء البطولة؟ سيتم إغلاق الجولة الحالية (من لم يسلّم = 0) وإنهاء مباراة النهائي وتحديد البطل.'
+            : 'إغلاق الجولة الحالية؟ من لم يسلّم = 0. ثم إنشاء جولة جديدة.';
+        if (!window.confirm(confirmMsg)) return;
         try {
             await api.post(`/teacher/courses/${courseId}/competitions/${comp.id}/rounds/next`);
             await loadAll();
-            alert('تم إغلاق الجولة وإنشاء جولة جديدة (مسودة). أضف أسئلتها ثم فعّلها.');
+            alert(finalRound
+                ? 'تم إنهاء البطولة وتحديد النتائج.'
+                : 'تم إغلاق الجولة وإنشاء جولة جديدة (مسودة). أضف أسئلتها ثم فعّلها.');
         } catch (e) {
             const data = e.response?.data;
             if (data?.code === 'tie_break_required' && data?.ties?.length) {
-                setTieModal({ compId: comp.id, compType: type, ties: data.ties });
+                setTieModal({ compId: comp.id, compType: comp.type, ties: data.ties });
                 return;
             }
             alert(data?.message || 'فشل');
@@ -345,6 +361,10 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
     };
 
     const addRound = async (comp) => {
+        if (comp.round_limits && !comp.round_limits.can_add_round) {
+            alert(`لا يمكن إضافة جولة — الحد الأقصى ${comp.round_limits.max_rounds} جولة`);
+            return;
+        }
         try {
             await api.post(`/teacher/courses/${courseId}/competitions/${comp.id}/rounds`, {
                 questions_per_round: comp.questions_per_round || 5,
@@ -352,7 +372,7 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
             });
             await loadAll();
         } catch (e) {
-            alert('فشل إضافة جولة');
+            alert(e.response?.data?.message || 'فشل إضافة جولة');
         }
     };
 
@@ -439,12 +459,25 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
         }
     };
 
+    const finalizeLeague = async (comp) => {
+        if (!window.confirm('احتساب نتائج مباريات الدوري وتحديث الترتيب النهائي؟')) return;
+        try {
+            await api.post(`/teacher/courses/${courseId}/competitions/${comp.id}/finalize-matches`);
+            await loadAll();
+            alert('تم احتساب نتائج الدوري');
+        } catch (e) {
+            alert(e.response?.data?.message || 'فشل احتساب النتائج');
+        }
+    };
+
     const formatTime = (sec) => {
         if (!sec && sec !== 0) return '—';
         const m = Math.floor(sec / 60);
         const s = sec % 60;
         return `${m}:${String(s).padStart(2, '0')}`;
     };
+
+    const isCupFinal = (comp) => comp?.type === 'cup' && comp?.round_limits?.is_final_round === true;
 
     const phaseLabel = (phase) => ({
         groups: 'دور المجموعات',
@@ -480,18 +513,36 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
                         <p className="text-xs text-indigo-600 font-bold mt-0.5">
                             {phaseLabel(comp.phase)}
                             {comp.active_round && ` · الجولة ${comp.active_round.round_number} نشطة`}
+                            {comp.round_limits && ` · الجولات ${comp.round_limits.current_rounds}/${comp.round_limits.max_rounds}`}
                         </p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                        <button onClick={() => addRound(comp)} className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold">
-                            + جولة جديدة
-                        </button>
-                        <button onClick={() => startNextRound(comp)} className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-bold">
-                            الجولة التالية
+                        {comp.round_limits?.can_add_round !== false && (
+                            <button onClick={() => addRound(comp)} className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold">
+                                + جولة جديدة
+                            </button>
+                        )}
+                        <button
+                            onClick={() => startNextRound(comp)}
+                            disabled={!isCupFinal(comp) && comp.round_limits?.can_add_round === false && !comp.rounds?.some(r => r.status === 'draft')}
+                            className={`px-4 py-2 rounded-xl text-white text-sm font-bold ${
+                                isCupFinal(comp)
+                                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                                    : comp.round_limits?.can_add_round === false && !comp.rounds?.some(r => r.status === 'draft')
+                                        ? 'bg-slate-300 cursor-not-allowed'
+                                        : 'bg-amber-500'
+                            }`}
+                        >
+                            {isCupFinal(comp) ? 'إنهاء البطولة' : 'الجولة التالية'}
                         </button>
                         {type === 'cup' && comp.phase === 'groups' && (
                             <button onClick={() => startKnockout(comp)} className="px-4 py-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-sm font-bold">
                                 بدء خروج المغلوب
+                            </button>
+                        )}
+                        {type === 'league' && comp.phase === 'league' && (
+                            <button onClick={() => finalizeLeague(comp)} className="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-sm font-bold">
+                                احتساب نتائج الدوري
                             </button>
                         )}
                         <button onClick={() => toggleShowAnswers(comp)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold ${comp.allow_show_answers ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
@@ -609,7 +660,7 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
                 {(comp.matches || []).length > 0 && (
                     <div>
                         <h4 className="font-bold text-sm text-slate-600 mb-2">المباريات</h4>
-                        <div className="grid gap-2 max-h-48 overflow-y-auto">
+                        <div className={`grid gap-2 overflow-y-auto ${comp.phase === 'knockout' || comp.phase === 'finished' ? 'max-h-80' : 'max-h-48'}`}>
                             {sortTeacherMatches(comp.matches).map(m => (
                                 <button
                                     key={m.id}
@@ -630,6 +681,16 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
                                 </button>
                             ))}
                         </div>
+                    </div>
+                )}
+
+                {type === 'cup' && (comp.phase === 'knockout' || comp.phase === 'finished') && (
+                    <div>
+                        <h4 className="font-bold text-sm text-slate-600 mb-2">شجرة خروج المغلوب</h4>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 w-full max-w-full overflow-hidden">
+                            <KnockoutBracket bracket={comp.knockout_bracket} />
+                        </div>
+                        <p className="text-xs text-slate-400 text-center mt-2">اسحب يميناً لعرض الشجرة كاملة</p>
                     </div>
                 )}
             </div>
