@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
-import { UserPlus, Trash2, X, Loader2, Users, Edit, Eye } from 'lucide-react';
+import { UserPlus, Trash2, X, Loader2, Users, Edit, Eye, Copy, Search, BookOpen, ChevronRight } from 'lucide-react';
 
 const emptyTeacher = {
     name: '',
@@ -26,6 +26,16 @@ const ManageTeachers = () => {
     const [saving, setSaving] = useState(false);
     const [impersonatingId, setImpersonatingId] = useState(null);
 
+    // Copy course flow
+    const [copyStep, setCopyStep] = useState(null); // null | 'course' | 'teacher'
+    const [copySourceTeacher, setCopySourceTeacher] = useState(null);
+    const [copySourceCourse, setCopySourceCourse] = useState(null);
+    const [teacherCourses, setTeacherCourses] = useState([]);
+    const [coursesLoading, setCoursesLoading] = useState(false);
+    const [courseSearch, setCourseSearch] = useState('');
+    const [teacherSearch, setTeacherSearch] = useState('');
+    const [copySaving, setCopySaving] = useState(false);
+
     useEffect(() => {
         fetchData();
     }, []);
@@ -43,6 +53,76 @@ const ManageTeachers = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const filteredCourses = useMemo(() => {
+        const q = courseSearch.trim().toLowerCase();
+        if (!q) return teacherCourses;
+        return teacherCourses.filter(c => (c.title || '').toLowerCase().includes(q));
+    }, [teacherCourses, courseSearch]);
+
+    const filteredDestTeachers = useMemo(() => {
+        const q = teacherSearch.trim().toLowerCase();
+        const list = teachers.filter(t => t.id !== copySourceTeacher?.id);
+        if (!q) return list;
+        return list.filter(t =>
+            (t.name || '').toLowerCase().includes(q) ||
+            (t.email || '').toLowerCase().includes(q) ||
+            (t.main_subject || '').toLowerCase().includes(q)
+        );
+    }, [teachers, teacherSearch, copySourceTeacher]);
+
+    const openCopyCourse = async (teacher) => {
+        setCopySourceTeacher(teacher);
+        setCopySourceCourse(null);
+        setTeacherCourses([]);
+        setCourseSearch('');
+        setTeacherSearch('');
+        setCopyStep('course');
+        setCoursesLoading(true);
+        try {
+            const res = await api.get(`/admin/teachers/${teacher.id}/courses`);
+            setTeacherCourses(res.data?.data || []);
+        } catch (err) {
+            alert(err.response?.data?.message || 'فشل تحميل كورسات المدرس');
+            setCopyStep(null);
+        } finally {
+            setCoursesLoading(false);
+        }
+    };
+
+    const handleSelectCourse = (course) => {
+        setCopySourceCourse(course);
+        setTeacherSearch('');
+        setCopyStep('teacher');
+    };
+
+    const handleCopyCourse = async (destTeacher) => {
+        if (!copySourceCourse || copySaving) return;
+        setCopySaving(true);
+        try {
+            await api.post(`/admin/courses/${copySourceCourse.id}/copy`, {
+                destination_teacher_id: destTeacher.id
+            });
+            alert(`تم نسخ الكورس "${copySourceCourse.title}" إلى المدرس ${destTeacher.name} بنجاح!`);
+            setCopyStep(null);
+            setCopySourceTeacher(null);
+            setCopySourceCourse(null);
+            fetchData();
+        } catch (err) {
+            alert(err.response?.data?.message || 'فشل نسخ الكورس');
+        } finally {
+            setCopySaving(false);
+        }
+    };
+
+    const closeCopyModal = () => {
+        if (copySaving) return;
+        setCopyStep(null);
+        setCopySourceTeacher(null);
+        setCopySourceCourse(null);
+        setCourseSearch('');
+        setTeacherSearch('');
     };
 
     const openCreateModal = () => {
@@ -211,7 +291,15 @@ const ManageTeachers = () => {
                                             </div>
                                         </td>
                                         <td className="py-5 px-8">
-                                            <div className="flex justify-end gap-2">
+                                            <div className="flex justify-end items-center gap-2 flex-wrap">
+                                                <button
+                                                    onClick={() => openCopyCourse(t)}
+                                                    className="px-3 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors flex items-center gap-1.5"
+                                                    title="نسخ كورس"
+                                                >
+                                                    <Copy size={14} />
+                                                    نسخ كورس
+                                                </button>
                                                 <button
                                                     onClick={() => handleViewDashboard(t)}
                                                     disabled={impersonatingId === t.id}
@@ -302,6 +390,191 @@ const ManageTeachers = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── Copy Course: select course ──────────────────────────────── */}
+            {copyStep === 'course' && (
+                <div className="fixed inset-0 bg-[#0F172A]/50 backdrop-blur-sm flex items-center justify-center p-4 z-[200] animate-in fade-in duration-200">
+                    <div className="bg-white rounded-[28px] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-[#F1F5F9] flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                                    <Copy size={18} className="text-indigo-600" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-extrabold text-[#0F172A] tracking-tight">نسخ كورس</h2>
+                                    <p className="text-xs text-[#64748B] font-semibold mt-0.5 truncate max-w-[240px]">
+                                        كورسات: {copySourceTeacher?.name}
+                                    </p>
+                                </div>
+                            </div>
+                            <button onClick={closeCopyModal} className="w-9 h-9 rounded-full bg-[#F1F5F9] flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0] hover:text-[#0F172A] transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="px-4 pt-4">
+                            <div className="relative">
+                                <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+                                <input
+                                    type="text"
+                                    value={courseSearch}
+                                    onChange={e => setCourseSearch(e.target.value)}
+                                    placeholder="ابحث عن كورس..."
+                                    className="w-full h-11 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] pr-10 pl-4 text-sm font-semibold text-[#0F172A] outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                                    dir="rtl"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="p-4 max-h-[380px] overflow-y-auto space-y-2" dir="rtl">
+                            <p className="text-[11px] font-black text-[#94A3B8] uppercase tracking-widest px-2 mb-3">اختر الكورس المراد نسخه</p>
+                            {coursesLoading ? (
+                                <div className="py-10 text-center">
+                                    <Loader2 className="animate-spin mx-auto text-indigo-400 mb-2" size={28} />
+                                    <p className="text-sm text-[#64748B] font-semibold">جاري التحميل...</p>
+                                </div>
+                            ) : filteredCourses.length === 0 ? (
+                                <div className="py-10 text-center">
+                                    <BookOpen className="mx-auto text-[#CBD5E1] mb-2" size={28} />
+                                    <p className="text-sm text-[#64748B] font-semibold">
+                                        {teacherCourses.length === 0 ? 'لا توجد كورسات لهذا المدرس' : 'لا توجد نتائج للبحث'}
+                                    </p>
+                                </div>
+                            ) : (
+                                filteredCourses.map(c => (
+                                    <button
+                                        key={c.id}
+                                        onClick={() => handleSelectCourse(c)}
+                                        className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-[#E2E8F0] hover:border-indigo-300 hover:bg-indigo-50/60 transition-all text-right group"
+                                    >
+                                        <div className="w-7 h-7 rounded-lg bg-[#F1F5F9] group-hover:bg-indigo-100 flex items-center justify-center shrink-0 transition-colors">
+                                            <BookOpen size={14} className="text-[#64748B] group-hover:text-indigo-600 transition-colors" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <span className="font-bold text-[#0F172A] text-sm block truncate">{c.title}</span>
+                                            {(c.grade_name || c.subject_name) && (
+                                                <span className="text-[11px] text-[#94A3B8] font-medium">
+                                                    {[c.subject_name, c.grade_name].filter(Boolean).join(' • ')}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <ChevronRight size={14} className="text-[#94A3B8] group-hover:text-indigo-500 shrink-0 transition-colors rotate-180" />
+                                    </button>
+                                ))
+                            )}
+                        </div>
+
+                        <div className="p-4 border-t border-[#F1F5F9] bg-[#F8FAFC]">
+                            <button onClick={closeCopyModal} className="w-full h-11 rounded-xl font-bold text-[#64748B] border border-[#E2E8F0] bg-white hover:bg-[#F1F5F9] transition-colors text-sm">
+                                إلغاء
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── Copy Course: select destination teacher ─────────────────── */}
+            {copyStep === 'teacher' && (
+                <div className="fixed inset-0 bg-[#0F172A]/50 backdrop-blur-sm flex items-center justify-center p-4 z-[200] animate-in fade-in duration-200">
+                    <div className="bg-white rounded-[28px] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-[#F1F5F9] flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                                    <Copy size={18} className="text-indigo-600" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-extrabold text-[#0F172A] tracking-tight">نسخ إلى مدرس</h2>
+                                    <p className="text-xs text-[#64748B] font-semibold mt-0.5 truncate max-w-[240px]">
+                                        {copySourceCourse?.title}
+                                    </p>
+                                </div>
+                            </div>
+                            <button onClick={closeCopyModal} className="w-9 h-9 rounded-full bg-[#F1F5F9] flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0] hover:text-[#0F172A] transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="px-6 pt-4 flex items-center gap-2" dir="rtl">
+                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#94A3B8]">
+                                <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black bg-green-500 text-white">✓</div>
+                                الكورس
+                            </div>
+                            <ChevronRight size={12} className="text-[#CBD5E1] rotate-180" />
+                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-indigo-600">
+                                <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black bg-indigo-600 text-white">2</div>
+                                المدرس
+                            </div>
+                        </div>
+
+                        <div className="px-4 pt-4">
+                            <div className="relative">
+                                <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+                                <input
+                                    type="text"
+                                    value={teacherSearch}
+                                    onChange={e => setTeacherSearch(e.target.value)}
+                                    placeholder="ابحث عن مدرس..."
+                                    className="w-full h-11 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] pr-10 pl-4 text-sm font-semibold text-[#0F172A] outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                                    dir="rtl"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="p-4 max-h-[340px] overflow-y-auto space-y-2" dir="rtl">
+                            <p className="text-[11px] font-black text-[#94A3B8] uppercase tracking-widest px-2 mb-3">اختر المدرس المراد النسخ إليه</p>
+                            {filteredDestTeachers.length === 0 ? (
+                                <div className="py-10 text-center">
+                                    <Users className="mx-auto text-[#CBD5E1] mb-2" size={28} />
+                                    <p className="text-sm text-[#64748B] font-semibold">لا توجد نتائج</p>
+                                </div>
+                            ) : (
+                                filteredDestTeachers.map(t => (
+                                    <button
+                                        key={t.id}
+                                        disabled={copySaving}
+                                        onClick={() => handleCopyCourse(t)}
+                                        className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-[#E2E8F0] hover:border-indigo-300 hover:bg-indigo-50/60 transition-all text-right group disabled:opacity-50"
+                                    >
+                                        {copySaving ? (
+                                            <Loader2 size={16} className="animate-spin text-indigo-500 shrink-0" />
+                                        ) : (
+                                            <div className="w-9 h-9 rounded-xl overflow-hidden bg-indigo-100 flex items-center justify-center shrink-0">
+                                                {t.profile_image_url ? (
+                                                    <img src={t.profile_image_url} className="w-full h-full object-cover" alt="" />
+                                                ) : (
+                                                    <span className="text-indigo-600 font-bold text-sm">{(t.name || '?').charAt(0)}</span>
+                                                )}
+                                            </div>
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                            <span className="font-bold text-[#0F172A] text-sm block truncate">{t.name}</span>
+                                            <span className="text-[11px] text-[#94A3B8] font-medium">{t.main_subject || t.email}</span>
+                                        </div>
+                                        <ChevronRight size={14} className="text-[#94A3B8] group-hover:text-indigo-500 shrink-0 transition-colors rotate-180" />
+                                    </button>
+                                ))
+                            )}
+                        </div>
+
+                        <div className="p-4 border-t border-[#F1F5F9] bg-[#F8FAFC] flex gap-2">
+                            <button
+                                onClick={() => setCopyStep('course')}
+                                disabled={copySaving}
+                                className="flex-1 h-11 rounded-xl font-bold text-indigo-700 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-colors text-sm disabled:opacity-50"
+                            >
+                                رجوع
+                            </button>
+                            <button
+                                onClick={closeCopyModal}
+                                disabled={copySaving}
+                                className="flex-1 h-11 rounded-xl font-bold text-[#64748B] border border-[#E2E8F0] bg-white hover:bg-[#F1F5F9] transition-colors text-sm disabled:opacity-50"
+                            >
+                                إلغاء
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

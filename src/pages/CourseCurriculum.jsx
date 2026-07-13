@@ -5,7 +5,7 @@ import {
     ChevronLeft, Loader2, PlayCircle, Plus, Layout, Video, FileText,
     CheckCircle, HelpCircle, Award, Clock, Trash2, Edit2,
     List as ListIcon, Layers, Settings, Users, ArrowLeft,
-    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy, MessageCircle, Trophy
+    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy, MessageCircle, Trophy, Search
 } from 'lucide-react';
 import CourseChatPanel from '../components/CourseChatPanel';
 import CourseCompetitionPanel from '../components/CourseCompetitionPanel';
@@ -45,7 +45,7 @@ const CourseCurriculum = () => {
     const [submissionsMode, setSubmissionsMode] = useState('exam');
     const [assignmentStudentModalOpen, setAssignmentStudentModalOpen] = useState(false);
     const [selectedAssignmentStudent, setSelectedAssignmentStudent] = useState(null);
-    const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+    const [sortConfig, setSortConfig] = useState({ key: 'points', direction: 'desc' });
 
     // ── Copy Unit state ──────────────────────────────────────────────────────
     const [copyUnitModalOpen, setCopyUnitModalOpen] = useState(false);
@@ -368,9 +368,10 @@ const CourseCurriculum = () => {
                     aVal = a.student_name?.toLowerCase() || '';
                     bVal = b.student_name?.toLowerCase() || '';
                     break;
-                case 'score':
-                    aVal = a.avg_marks_percentage || 0;
-                    bVal = b.avg_marks_percentage || 0;
+                case 'points':
+                case 'score': // legacy key — rank by points
+                    aVal = a.total_points || 0;
+                    bVal = b.total_points || 0;
                     break;
                 case 'progress':
                     aVal = a.enrolled_courses?.find(c => c.id === cid)?.progress || 0;
@@ -630,7 +631,7 @@ const CourseCurriculum = () => {
                                     <span className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest">Sort By:</span>
                                     {[
                                         { key: 'name', label: 'Alphabetical' },
-                                        { key: 'score', label: 'Average Score' },
+                                        { key: 'points', label: 'Points' },
                                         { key: 'date_enrolled', label: 'Date Enrolled' },
                                         { key: 'expiry', label: 'Ending Enrollment' }
                                     ].map(opt => (
@@ -665,7 +666,7 @@ const CourseCurriculum = () => {
                             <div className="grid grid-cols-12 gap-4 py-4 px-2 text-xs font-bold text-[#94A3B8] uppercase tracking-widest hidden md:grid">
                                 <div className="col-span-5">Student</div>
                                 <div className="col-span-3">Progress</div>
-                                <div className="col-span-2 text-center">Avg. Performance</div>
+                                <div className="col-span-2 text-center">Points</div>
                                 <div className="col-span-2 text-right">Actions</div>
                             </div>
 
@@ -701,8 +702,10 @@ const CourseCurriculum = () => {
                                             </div>
                                         </div>
                                         <div className="col-span-2 text-center">
-                                            <span className={`px-2 py-1.5 rounded-lg text-[11px] font-black tracking-widest uppercase ${student.avg_marks_percentage >= 60 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                                                {student.avg_marks_percentage}%
+                                            <span className={`px-2 py-1.5 rounded-lg text-[11px] font-black tracking-widest uppercase ${
+                                                (student.total_points || 0) > 0 ? 'bg-indigo-50 text-indigo-700' : 'bg-[#F1F5F9] text-[#94A3B8]'
+                                            }`}>
+                                                {student.total_points ?? 0}
                                             </span>
                                         </div>
                                         <div className="col-span-2 flex items-center justify-end gap-3">
