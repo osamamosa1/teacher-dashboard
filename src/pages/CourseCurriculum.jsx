@@ -5,7 +5,7 @@ import {
     ChevronLeft, Loader2, PlayCircle, Plus, Layout, Video, FileText,
     CheckCircle, HelpCircle, Award, Clock, Trash2, Edit2,
     List as ListIcon, Layers, Settings, Users, ArrowLeft,
-    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy, MessageCircle, Trophy, Search
+    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy, MessageCircle, Trophy, Search, RotateCcw
 } from 'lucide-react';
 import CourseChatPanel from '../components/CourseChatPanel';
 import CourseCompetitionPanel from '../components/CourseCompetitionPanel';
@@ -69,6 +69,7 @@ const CourseCurriculum = () => {
     const [bulkEnrolling, setBulkEnrolling] = useState(false);
     const [addStudentSearch, setAddStudentSearch] = useState('');
     const [videoInsightsLesson, setVideoInsightsLesson] = useState(null);
+    const [resettingPoints, setResettingPoints] = useState(false);
 
     useEffect(() => {
         fetchCurriculum();
@@ -150,6 +151,24 @@ const CourseCurriculum = () => {
             fetchUnits();
         } catch (err) {
             alert('Error deleting unit');
+        }
+    };
+
+    const handleResetCoursePoints = async () => {
+        const confirmed = window.confirm(
+            'سيتم حذف كل نقاط الطلبة لهذا الكورس فقط من قاعدة البيانات (الليدربورد). هل تريد المتابعة؟'
+        );
+        if (!confirmed) return;
+        setResettingPoints(true);
+        try {
+            const res = await api.post(`/teacher/courses/${courseId}/points/reset`);
+            const deleted = res.data?.deleted_count ?? 0;
+            alert(`تم تصفير النقاط بنجاح. عدد السجلات المحذوفة: ${deleted}`);
+        } catch (err) {
+            console.error(err);
+            alert(err.response?.data?.message || 'فشل تصفير النقاط');
+        } finally {
+            setResettingPoints(false);
         }
     };
 
@@ -466,7 +485,15 @@ const CourseCurriculum = () => {
                 </div>
 
                 {activeTab === 'lessons' ? (
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 flex-wrap">
+                        <button
+                            onClick={handleResetCoursePoints}
+                            disabled={resettingPoints}
+                            className="bg-red-50 text-red-700 hover:bg-red-100 px-6 py-3 font-bold tracking-tight flex items-center justify-center gap-2 transition-all border border-red-100 rounded-lg disabled:opacity-60"
+                        >
+                            {resettingPoints ? <Loader2 size={18} className="animate-spin" /> : <RotateCcw size={18} />}
+                            Reset Points
+                        </button>
                         <button
                             onClick={() => {
                                 setCurrentUnit({ title: '', sort_order: units.length + 1 });
@@ -775,10 +802,26 @@ const CourseCurriculum = () => {
                         )}
                     </div>
                 ) : (
-                    <div className="py-20 text-center">
-                        <Settings className="mx-auto text-[#94A3B8] mb-4" size={40} />
-                        <p className="font-extrabold text-[#0F172A] text-xl">Module Settings</p>
-                        <p className="text-sm font-semibold text-[#64748B] mt-2">Adjust course pricing, access levels, and visibility.</p>
+                    <div className="py-12 max-w-xl mx-auto space-y-6">
+                        <div className="text-center">
+                            <Settings className="mx-auto text-[#94A3B8] mb-4" size={40} />
+                            <p className="font-extrabold text-[#0F172A] text-xl">Module Settings</p>
+                            <p className="text-sm font-semibold text-[#64748B] mt-2">إدارة إعدادات الكورس والنقاط.</p>
+                        </div>
+                        <div className="border border-red-100 bg-red-50/60 rounded-2xl p-6 text-right">
+                            <h3 className="font-extrabold text-[#0F172A] text-lg mb-2">تصفير نقاط الكورس</h3>
+                            <p className="text-sm font-semibold text-[#64748B] mb-4 leading-relaxed">
+                                يحذف كل نقاط الطلبة لهذا الكورس فقط من قاعدة البيانات (يؤثر على ترتيب الليدربورد داخل الكورس).
+                            </p>
+                            <button
+                                onClick={handleResetCoursePoints}
+                                disabled={resettingPoints}
+                                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 font-bold rounded-lg flex items-center gap-2 disabled:opacity-60 mr-auto"
+                            >
+                                {resettingPoints ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                                Reset Points
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
