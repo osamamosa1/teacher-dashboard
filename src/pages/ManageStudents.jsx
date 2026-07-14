@@ -12,7 +12,7 @@ const ManageStudents = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [togglingId, setTogglingId] = useState(null);
     const [expandedId, setExpandedId] = useState(null);
-    const [sortConfig, setSortConfig] = useState({ key: 'date_enrolled', direction: 'desc' });
+    const [sortConfig, setSortConfig] = useState({ key: 'points', direction: 'desc' });
     const [registerModalOpen, setRegisterModalOpen] = useState(false);
     const [enrollModalOpen, setEnrollModalOpen] = useState(false);
     const [parentModalOpen, setParentModalOpen] = useState(false);
@@ -344,9 +344,10 @@ const ManageStudents = () => {
                     aVal = a.student_name?.toLowerCase();
                     bVal = b.student_name?.toLowerCase();
                     break;
-                case 'score':
-                    aVal = a.avg_marks_percentage || 0;
-                    bVal = b.avg_marks_percentage || 0;
+                case 'points':
+                case 'score': // legacy key — rank by points
+                    aVal = a.total_points || 0;
+                    bVal = b.total_points || 0;
                     break;
                 case 'date_enrolled':
                     if (courseId) {
@@ -381,7 +382,7 @@ const ManageStudents = () => {
 
     const activeCount = students.filter(s => s.is_active).length;
     const avgOverall = students.length
-        ? (students.reduce((sum, s) => sum + (s.avg_marks_percentage || 0), 0) / students.length).toFixed(1)
+        ? Math.round(students.reduce((sum, s) => sum + (s.total_points || 0), 0) / students.length)
         : 0;
 
     const getMarkColor = (pct) => {
@@ -439,7 +440,7 @@ const ManageStudents = () => {
                     { label: 'Total Students', value: students.length, icon: <Users size={20} /> },
                     { label: 'Active', value: activeCount, icon: <CheckCircle size={20} className="text-green-500" /> },
                     { label: 'Inactive', value: students.length - activeCount, icon: <XCircle size={20} className="text-red-400" /> },
-                    { label: 'Avg Score', value: `${avgOverall}%`, icon: <TrendingUp size={20} className="text-indigo-600" /> },
+                    { label: 'Avg Points', value: `${avgOverall}`, icon: <TrendingUp size={20} className="text-indigo-600" /> },
                 ].map((stat, i) => (
                     <div key={i} className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 flex items-center gap-4">
                         <div className="w-12 h-12 rounded-xl bg-[#F1F5F9] flex items-center justify-center text-[#0F172A]">
@@ -470,7 +471,7 @@ const ManageStudents = () => {
                     <span className="text-xs font-bold text-[#94A3B8] uppercase tracking-widest self-center mr-2">Sort By:</span>
                     {[
                         { key: 'name', label: 'Name' },
-                        { key: 'score', label: 'Score' },
+                        { key: 'points', label: 'Points' },
                         { key: 'date_enrolled', label: 'Joined' },
                         { key: 'expiry', label: 'Expiry' }
                     ].map(opt => (
@@ -511,7 +512,7 @@ const ManageStudents = () => {
                     <div className="grid grid-cols-12 gap-4 px-8 py-4 border-b border-[#F1F5F9] bg-[#F8FAFC]">
                         <div className="col-span-8 md:col-span-4 text-xs font-bold text-[#94A3B8] uppercase tracking-widest">Student</div>
                         <div className="hidden md:block col-span-3 text-xs font-bold text-[#94A3B8] uppercase tracking-widest">Enrolled Courses</div>
-                        <div className="hidden lg:block col-span-2 text-xs font-bold text-[#94A3B8] uppercase tracking-widest">Avg Score</div>
+                        <div className="hidden lg:block col-span-2 text-xs font-bold text-[#94A3B8] uppercase tracking-widest">Points</div>
                         <div className="hidden sm:block col-span-2 text-xs font-bold text-[#94A3B8] uppercase tracking-widest">Status</div>
                         <div className="col-span-4 md:col-span-1 text-xs font-bold text-[#94A3B8] uppercase tracking-widest text-right">Action</div>
                     </div>
@@ -551,8 +552,10 @@ const ManageStudents = () => {
 
                                     {/* Avg marks */}
                                     <div className="hidden lg:block col-span-2">
-                                        <span className={`inline-flex items-center px-3 py-1 rounded-lg text-sm font-extrabold ${getMarkColor(student.avg_marks_percentage)} ${getMarkBg(student.avg_marks_percentage)}`}>
-                                            {student.avg_marks_percentage?.toFixed(1) ?? '—'}%
+                                        <span className={`inline-flex items-center px-3 py-1 rounded-lg text-sm font-extrabold ${
+                                            (student.total_points || 0) > 0 ? 'text-indigo-700 bg-indigo-50' : 'text-[#94A3B8] bg-[#F1F5F9]'
+                                        }`}>
+                                            {student.total_points ?? 0}
                                         </span>
                                     </div>
 
