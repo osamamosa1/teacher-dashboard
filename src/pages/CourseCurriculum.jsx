@@ -1,14 +1,13 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import {
     ChevronLeft, Loader2, PlayCircle, Plus, Layout, Video, FileText,
     CheckCircle, HelpCircle, Award, Clock, Trash2, Edit2,
     List as ListIcon, Layers, Settings, Users, ArrowLeft,
-    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy, MessageCircle, Trophy, Search, RotateCcw
+    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy, MessageCircle, RotateCcw
 } from 'lucide-react';
 import CourseChatPanel from '../components/CourseChatPanel';
-import CourseCompetitionPanel from '../components/CourseCompetitionPanel';
 import VideoLessonInsightsModal from '../components/VideoLessonInsightsModal';
 
 const CourseCurriculum = () => {
@@ -47,13 +46,13 @@ const CourseCurriculum = () => {
     const [selectedAssignmentStudent, setSelectedAssignmentStudent] = useState(null);
     const [sortConfig, setSortConfig] = useState({ key: 'points', direction: 'desc' });
 
-    // ── Copy Unit state ──────────────────────────────────────────────────────
+    // ΓöÇΓöÇ Copy Unit state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     const [copyUnitModalOpen, setCopyUnitModalOpen] = useState(false);
     const [copyUnitSource, setCopyUnitSource] = useState(null); // { id, title }
     const [myCourses, setMyCourses] = useState([]);
     const [copyUnitSaving, setCopyUnitSaving] = useState(false);
 
-    // ── Copy Lesson state ────────────────────────────────────────────────────
+    // ΓöÇΓöÇ Copy Lesson state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     const [copyLessonModalOpen, setCopyLessonModalOpen] = useState(false);
     const [copyLessonSource, setCopyLessonSource] = useState(null); // { id, title }
     const [copyLessonStep, setCopyLessonStep] = useState('course'); // 'course' | 'unit'
@@ -67,17 +66,15 @@ const CourseCurriculum = () => {
     const [selectedStudentIds, setSelectedStudentIds] = useState([]);
     const [loadingEligible, setLoadingEligible] = useState(false);
     const [bulkEnrolling, setBulkEnrolling] = useState(false);
-    const [addStudentSearch, setAddStudentSearch] = useState('');
     const [videoInsightsLesson, setVideoInsightsLesson] = useState(null);
     const [resettingPoints, setResettingPoints] = useState(false);
 
     useEffect(() => {
         fetchCurriculum();
-        fetchStudents();
     }, [courseId]);
 
     useEffect(() => {
-        if (activeTab === 'students' && students.length === 0 && !studentsLoading) {
+        if (activeTab === 'students') {
             fetchStudents();
         }
     }, [activeTab, courseId]);
@@ -250,7 +247,6 @@ const CourseCurriculum = () => {
         setAddStudentsOpen(true);
         setLoadingEligible(true);
         setSelectedStudentIds([]);
-        setAddStudentSearch('');
         try {
             const res = await api.get('/teacher/courses/0/students');
             const all = res.data.data || [];
@@ -302,7 +298,7 @@ const CourseCurriculum = () => {
         }
     };
 
-    // ── Fetch teacher's courses for copy modals ──────────────────────────────
+    // ΓöÇΓöÇ Fetch teacher's courses for copy modals ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     const fetchMyCourses = async () => {
         if (myCourses.length > 0) return; // cache
         try {
@@ -311,7 +307,7 @@ const CourseCurriculum = () => {
         } catch (err) { console.error(err); }
     };
 
-    // ── Open copy-unit modal ──────────────────────────────────────────────────
+    // ΓöÇΓöÇ Open copy-unit modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     const openCopyUnit = async (unit) => {
         setCopyUnitSource(unit);
         await fetchMyCourses();
@@ -323,15 +319,15 @@ const CourseCurriculum = () => {
         try {
             await api.post(`/teacher/units/${copyUnitSource.id}/copy`, { destination_course_id: destCourseId });
             setCopyUnitModalOpen(false);
-            alert('تم نسخ الوحدة بنجاح!');
+            alert('╪¬┘à ┘å╪│╪« ╪º┘ä┘ê╪¡╪»╪⌐ ╪¿┘å╪¼╪º╪¡!');
         } catch (err) {
-            alert(err.response?.data?.message || 'فشل نسخ الوحدة');
+            alert(err.response?.data?.message || '┘ü╪┤┘ä ┘å╪│╪« ╪º┘ä┘ê╪¡╪»╪⌐');
         } finally {
             setCopyUnitSaving(false);
         }
     };
 
-    // ── Open copy-lesson modal ────────────────────────────────────────────────
+    // ΓöÇΓöÇ Open copy-lesson modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     const openCopyLesson = async (lesson) => {
         setCopyLessonSource(lesson);
         setCopyLessonStep('course');
@@ -349,7 +345,7 @@ const CourseCurriculum = () => {
             const res = await api.get(`/teacher/courses/${courseItem.id}/units`);
             setCopyLessonUnits(res.data.data || []);
         } catch (err) {
-            alert('فشل تحميل الوحدات');
+            alert('┘ü╪┤┘ä ╪¬╪¡┘à┘è┘ä ╪º┘ä┘ê╪¡╪»╪º╪¬');
             setCopyLessonStep('course');
         } finally {
             setCopyLessonUnitsLoading(false);
@@ -361,9 +357,9 @@ const CourseCurriculum = () => {
         try {
             await api.post(`/teacher/lessons/${copyLessonSource.id}/copy`, { destination_unit_id: destUnitId });
             setCopyLessonModalOpen(false);
-            alert('تم نسخ الدرس بنجاح!');
+            alert('╪¬┘à ┘å╪│╪« ╪º┘ä╪»╪▒╪│ ╪¿┘å╪¼╪º╪¡!');
         } catch (err) {
-            alert(err.response?.data?.message || 'فشل نسخ الدرس');
+            alert(err.response?.data?.message || '┘ü╪┤┘ä ┘å╪│╪« ╪º┘ä╪»╪▒╪│');
         } finally {
             setCopyLessonSaving(false);
         }
@@ -388,7 +384,7 @@ const CourseCurriculum = () => {
                     bVal = b.student_name?.toLowerCase() || '';
                     break;
                 case 'points':
-                case 'score': // legacy key — rank by points
+                case 'score': // legacy key ΓÇö rank by points
                     aVal = a.total_points || 0;
                     bVal = b.total_points || 0;
                     break;
@@ -420,28 +416,6 @@ const CourseCurriculum = () => {
     };
 
     const sortedStudents = getSortedStudents(students);
-    const filteredEligibleStudents = eligibleStudents.filter((s) => {
-        const q = addStudentSearch.trim().toLowerCase();
-        if (!q) return true;
-        const name = (s.student_name || '').toLowerCase();
-        const email = (s.student_email || '').toLowerCase();
-        return name.includes(q) || email.includes(q);
-    });
-    const allFilteredEligibleSelected =
-        filteredEligibleStudents.length > 0 &&
-        filteredEligibleStudents.every((s) => selectedStudentIds.includes(s.student_id));
-    const filteredEligibleSelectedCount = filteredEligibleStudents.filter((s) =>
-        selectedStudentIds.includes(s.student_id)
-    ).length;
-    const toggleAllFilteredEligible = (selectAll) => {
-        const ids = filteredEligibleStudents.map((s) => s.student_id);
-        setSelectedStudentIds((prev) => {
-            if (selectAll) {
-                return Array.from(new Set([...prev, ...ids]));
-            }
-            return prev.filter((id) => !ids.includes(id));
-        });
-    };
 
     const getTypeBadge = (type) => {
         switch (type) {
@@ -547,12 +521,6 @@ const CourseCurriculum = () => {
                     Units ({units.length})
                 </button>
                 <button
-                    onClick={() => setActiveTab('competitions')}
-                    className={`flex items-center gap-2 pb-2 transition-all duration-200 ${activeTab === 'competitions' ? 'text-[#0F172A] font-extrabold border-b-2 border-[#0F172A]' : 'text-[#94A3B8] font-bold hover:text-[#0F172A]'}`}
-                >
-                    <Trophy size={16} /> مسابقات
-                </button>
-                <button
                     onClick={() => setActiveTab('settings')}
                     className={`flex items-center gap-2 pb-2 transition-all duration-200 ${activeTab === 'settings' ? 'text-[#0F172A] font-extrabold border-b-2 border-[#0F172A]' : 'text-[#94A3B8] font-bold hover:text-[#0F172A]'}`}
                 >
@@ -607,7 +575,7 @@ const CourseCurriculum = () => {
                                         <div className="col-span-1 text-right flex justify-end gap-2">
                                             <button
                                                 onClick={() => openCopyLesson(lesson)}
-                                                title="نسخ الدرس إلى كورس آخر"
+                                                title="┘å╪│╪« ╪º┘ä╪»╪▒╪│ ╪Ñ┘ä┘ë ┘â┘ê╪▒╪│ ╪ó╪«╪▒"
                                                 className="text-[#94A3B8] hover:text-indigo-600 transition-all"
                                             >
                                                 <Copy size={16} />
@@ -632,8 +600,6 @@ const CourseCurriculum = () => {
                     )
                 ) : activeTab === 'chat' ? (
                     <CourseChatPanel courseId={parseInt(courseId, 10)} />
-                ) : activeTab === 'competitions' ? (
-                    <CourseCompetitionPanel courseId={parseInt(courseId, 10)} students={students} />
                 ) : activeTab === 'students' ? (
                     studentsLoading ? (
                         <div className="flex items-center justify-center py-20 gap-3 text-[#64748B] font-semibold">
@@ -785,7 +751,7 @@ const CourseCurriculum = () => {
                                     <div className="col-span-3 text-right flex justify-end gap-2">
                                         <button
                                             onClick={() => openCopyUnit(unit)}
-                                            title="نسخ الوحدة إلى كورس آخر"
+                                            title="┘å╪│╪« ╪º┘ä┘ê╪¡╪»╪⌐ ╪Ñ┘ä┘ë ┘â┘ê╪▒╪│ ╪ó╪«╪▒"
                                             className="text-[#94A3B8] hover:text-indigo-600 transition-all"
                                         >
                                             <Copy size={16} />
@@ -885,7 +851,7 @@ const CourseCurriculum = () => {
                                             <input
                                                 type="password"
                                                 className="w-full bg-[#F8FAFC] border border-[#E2E8F0] h-11 px-4 rounded-xl text-sm font-semibold text-[#0F172A] focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                                                placeholder="••••••••"
+                                                placeholder="ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó"
                                                 value={parentData.parent_password}
                                                 onChange={e => setParentData({ ...parentData, parent_password: e.target.value })}
                                             />
@@ -1104,41 +1070,13 @@ const CourseCurriculum = () => {
                                 <X size={18} />
                             </button>
                         </div>
-                        <div className="p-4 border-b border-[#F1F5F9] space-y-3 bg-[#F8FAFC]/60">
-                            <div className="relative">
-                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" size={16} />
-                                <input
-                                    type="text"
-                                    placeholder="ابحث بالاسم أو البريد..."
-                                    value={addStudentSearch}
-                                    onChange={(e) => setAddStudentSearch(e.target.value)}
-                                    className="w-full pr-10 pl-4 py-2.5 border border-[#E2E8F0] rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
-                                />
-                            </div>
-                            <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
-                                <p className="text-[#64748B] font-semibold">
-                                    {addStudentSearch.trim()
-                                        ? `${filteredEligibleStudents.length} نتيجة · ${filteredEligibleSelectedCount} محدد`
-                                        : `${eligibleStudents.length} طالب متاح · ${selectedStudentIds.length} محدد`}
-                                </p>
-                                {filteredEligibleStudents.length > 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleAllFilteredEligible(!allFilteredEligibleSelected)}
-                                        className="font-bold text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded-lg hover:bg-indigo-50"
-                                    >
-                                        {allFilteredEligibleSelected ? 'إلغاء تحديد المعروض' : 'تحديد كل المعروض'}
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                        <div className="max-h-[42vh] overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                        <div className="max-h-[50vh] overflow-y-auto p-4 space-y-2 custom-scrollbar">
                             {loadingEligible ? (
                                 <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>
-                            ) : filteredEligibleStudents.length === 0 ? (
+                            ) : eligibleStudents.length === 0 ? (
                                 <p className="text-center text-[#94A3B8] py-10 font-medium">No available students to add</p>
                             ) : (
-                                filteredEligibleStudents.map((s) => (
+                                eligibleStudents.map((s) => (
                                     <label
                                         key={s.student_id}
                                         className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
@@ -1265,7 +1203,7 @@ const CourseCurriculum = () => {
                 </div>
             )}
 
-            {/* ─── Copy Unit Modal ──────────────────────────────────────────── */}
+            {/* ΓöÇΓöÇΓöÇ Copy Unit Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
             {copyUnitModalOpen && (
                 <div className="fixed inset-0 lg:left-[260px] bg-[#0F172A]/50 backdrop-blur-sm flex items-center justify-center p-4 z-[200] animate-in fade-in duration-200">
                     <div className="bg-white rounded-[28px] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -1276,7 +1214,7 @@ const CourseCurriculum = () => {
                                     <Copy size={18} className="text-indigo-600" />
                                 </div>
                                 <div>
-                                    <h2 className="text-lg font-extrabold text-[#0F172A] tracking-tight">نسخ الوحدة</h2>
+                                    <h2 className="text-lg font-extrabold text-[#0F172A] tracking-tight">┘å╪│╪« ╪º┘ä┘ê╪¡╪»╪⌐</h2>
                                     <p className="text-xs text-[#64748B] font-semibold mt-0.5 truncate max-w-[220px]">{copyUnitSource?.title}</p>
                                 </div>
                             </div>
@@ -1287,11 +1225,11 @@ const CourseCurriculum = () => {
 
                         {/* Course List */}
                         <div className="p-4 max-h-[380px] overflow-y-auto space-y-2">
-                            <p className="text-[11px] font-black text-[#94A3B8] uppercase tracking-widest px-2 mb-3">اختر الكورس المراد النسخ إليه</p>
+                            <p className="text-[11px] font-black text-[#94A3B8] uppercase tracking-widest px-2 mb-3">╪º╪«╪¬╪▒ ╪º┘ä┘â┘ê╪▒╪│ ╪º┘ä┘à╪▒╪º╪» ╪º┘ä┘å╪│╪« ╪Ñ┘ä┘è┘ç</p>
                             {myCourses.length === 0 ? (
                                 <div className="py-10 text-center">
                                     <Loader2 className="animate-spin mx-auto text-indigo-400 mb-2" size={28} />
-                                    <p className="text-sm text-[#64748B] font-semibold">جاري التحميل...</p>
+                                    <p className="text-sm text-[#64748B] font-semibold">╪¼╪º╪▒┘è ╪º┘ä╪¬╪¡┘à┘è┘ä...</p>
                                 </div>
                             ) : (
                                 myCourses.map(c => (
@@ -1317,14 +1255,14 @@ const CourseCurriculum = () => {
 
                         <div className="p-4 border-t border-[#F1F5F9] bg-[#F8FAFC]">
                             <button onClick={() => setCopyUnitModalOpen(false)} className="w-full h-11 rounded-xl font-bold text-[#64748B] border border-[#E2E8F0] bg-white hover:bg-[#F1F5F9] transition-colors text-sm">
-                                إلغاء
+                                ╪Ñ┘ä╪║╪º╪í
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* ─── Copy Lesson Modal ────────────────────────────────────────── */}
+            {/* ΓöÇΓöÇΓöÇ Copy Lesson Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
             {copyLessonModalOpen && (
                 <div className="fixed inset-0 lg:left-[260px] bg-[#0F172A]/50 backdrop-blur-sm flex items-center justify-center p-4 z-[200] animate-in fade-in duration-200">
                     <div className="bg-white rounded-[28px] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -1335,7 +1273,7 @@ const CourseCurriculum = () => {
                                     <Copy size={18} className="text-indigo-600" />
                                 </div>
                                 <div>
-                                    <h2 className="text-lg font-extrabold text-[#0F172A] tracking-tight">نسخ الدرس</h2>
+                                    <h2 className="text-lg font-extrabold text-[#0F172A] tracking-tight">┘å╪│╪« ╪º┘ä╪»╪▒╪│</h2>
                                     <p className="text-xs text-[#64748B] font-semibold mt-0.5 truncate max-w-[220px]">{copyLessonSource?.title}</p>
                                 </div>
                             </div>
@@ -1350,12 +1288,12 @@ const CourseCurriculum = () => {
                                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black transition-colors ${copyLessonStep === 'course' ? 'bg-indigo-600 text-white' : 'bg-green-500 text-white'}`}>
                                     {copyLessonStep === 'course' ? '1' : <CheckCircle size={12} />}
                                 </div>
-                                الكورس
+                                ╪º┘ä┘â┘ê╪▒╪│
                             </div>
                             <ChevronRight size={12} className="text-[#CBD5E1]" />
                             <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest transition-colors ${copyLessonStep === 'unit' ? 'text-indigo-600' : 'text-[#94A3B8]'}`}>
                                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black transition-colors ${copyLessonStep === 'unit' ? 'bg-indigo-600 text-white' : 'bg-[#E2E8F0] text-[#94A3B8]'}`}>2</div>
-                                الوحدة
+                                ╪º┘ä┘ê╪¡╪»╪⌐
                             </div>
                         </div>
 
@@ -1363,7 +1301,7 @@ const CourseCurriculum = () => {
                         <div className="p-4 max-h-[340px] overflow-y-auto space-y-2">
                             {copyLessonStep === 'course' ? (
                                 <>
-                                    <p className="text-[11px] font-black text-[#94A3B8] uppercase tracking-widest px-2 mb-3">اختر الكورس</p>
+                                    <p className="text-[11px] font-black text-[#94A3B8] uppercase tracking-widest px-2 mb-3">╪º╪«╪¬╪▒ ╪º┘ä┘â┘ê╪▒╪│</p>
                                     {myCourses.length === 0 ? (
                                         <div className="py-10 text-center">
                                             <Loader2 className="animate-spin mx-auto text-indigo-400 mb-2" size={28} />
@@ -1391,21 +1329,21 @@ const CourseCurriculum = () => {
                                             onClick={() => { setCopyLessonStep('course'); setCopyLessonSelectedCourse(null); }}
                                             className="flex items-center gap-1 text-[11px] font-black text-indigo-500 hover:text-indigo-700 uppercase tracking-widest transition-colors"
                                         >
-                                            <ChevronLeft size={12} /> رجوع
+                                            <ChevronLeft size={12} /> ╪▒╪¼┘ê╪╣
                                         </button>
                                         <span className="text-[11px] font-black text-[#94A3B8] uppercase tracking-widest truncate">
-                                            الوحدات في: {copyLessonSelectedCourse?.title}
+                                            ╪º┘ä┘ê╪¡╪»╪º╪¬ ┘ü┘è: {copyLessonSelectedCourse?.title}
                                         </span>
                                     </div>
                                     {copyLessonUnitsLoading ? (
                                         <div className="py-10 text-center">
                                             <Loader2 className="animate-spin mx-auto text-indigo-400 mb-2" size={28} />
-                                            <p className="text-sm text-[#64748B] font-semibold">جاري تحميل الوحدات...</p>
+                                            <p className="text-sm text-[#64748B] font-semibold">╪¼╪º╪▒┘è ╪¬╪¡┘à┘è┘ä ╪º┘ä┘ê╪¡╪»╪º╪¬...</p>
                                         </div>
                                     ) : copyLessonUnits.length === 0 ? (
                                         <div className="py-10 text-center">
-                                            <p className="text-sm font-bold text-[#0F172A]">لا توجد وحدات في هذا الكورس</p>
-                                            <p className="text-xs text-[#94A3B8] mt-1">قم بإضافة وحدات أولاً</p>
+                                            <p className="text-sm font-bold text-[#0F172A]">┘ä╪º ╪¬┘ê╪¼╪» ┘ê╪¡╪»╪º╪¬ ┘ü┘è ┘ç╪░╪º ╪º┘ä┘â┘ê╪▒╪│</p>
+                                            <p className="text-xs text-[#94A3B8] mt-1">┘é┘à ╪¿╪Ñ╪╢╪º┘ü╪⌐ ┘ê╪¡╪»╪º╪¬ ╪ú┘ê┘ä╪º┘ï</p>
                                         </div>
                                     ) : (
                                         copyLessonUnits.sort((a,b) => a.sort_order - b.sort_order).map(u => (
@@ -1433,7 +1371,7 @@ const CourseCurriculum = () => {
 
                         <div className="p-4 border-t border-[#F1F5F9] bg-[#F8FAFC]">
                             <button onClick={() => setCopyLessonModalOpen(false)} className="w-full h-11 rounded-xl font-bold text-[#64748B] border border-[#E2E8F0] bg-white hover:bg-[#F1F5F9] transition-colors text-sm">
-                                إلغاء
+                                ╪Ñ┘ä╪║╪º╪í
                             </button>
                         </div>
                     </div>
