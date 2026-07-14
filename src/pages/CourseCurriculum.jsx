@@ -5,9 +5,10 @@ import {
     ChevronLeft, Loader2, PlayCircle, Plus, Layout, Video, FileText,
     CheckCircle, HelpCircle, Award, Clock, Trash2, Edit2,
     List as ListIcon, Layers, Settings, Users, ArrowLeft,
-    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy, MessageCircle
+    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy, MessageCircle, Trophy, Search, RotateCcw
 } from 'lucide-react';
 import CourseChatPanel from '../components/CourseChatPanel';
+import CourseCompetitionPanel from '../components/CourseCompetitionPanel';
 import VideoLessonInsightsModal from '../components/VideoLessonInsightsModal';
 
 const CourseCurriculum = () => {
@@ -66,14 +67,17 @@ const CourseCurriculum = () => {
     const [selectedStudentIds, setSelectedStudentIds] = useState([]);
     const [loadingEligible, setLoadingEligible] = useState(false);
     const [bulkEnrolling, setBulkEnrolling] = useState(false);
+    const [addStudentSearch, setAddStudentSearch] = useState('');
     const [videoInsightsLesson, setVideoInsightsLesson] = useState(null);
+    const [resettingPoints, setResettingPoints] = useState(false);
 
     useEffect(() => {
         fetchCurriculum();
+        fetchStudents();
     }, [courseId]);
 
     useEffect(() => {
-        if (activeTab === 'students') {
+        if (activeTab === 'students' && students.length === 0 && !studentsLoading) {
             fetchStudents();
         }
     }, [activeTab, courseId]);
@@ -147,6 +151,24 @@ const CourseCurriculum = () => {
             fetchUnits();
         } catch (err) {
             alert('Error deleting unit');
+        }
+    };
+
+    const handleResetCoursePoints = async () => {
+        const confirmed = window.confirm(
+            'سيتم حذف كل نقاط الطلبة لهذا الكورس فقط من قاعدة البيانات (الليدربورد). هل تريد المتابعة؟'
+        );
+        if (!confirmed) return;
+        setResettingPoints(true);
+        try {
+            const res = await api.post(`/teacher/courses/${courseId}/points/reset`);
+            const deleted = res.data?.deleted_count ?? 0;
+            alert(`تم تصفير النقاط بنجاح. عدد السجلات المحذوفة: ${deleted}`);
+        } catch (err) {
+            console.error(err);
+            alert(err.response?.data?.message || 'فشل تصفير النقاط');
+        } finally {
+            setResettingPoints(false);
         }
     };
 
@@ -228,6 +250,7 @@ const CourseCurriculum = () => {
         setAddStudentsOpen(true);
         setLoadingEligible(true);
         setSelectedStudentIds([]);
+        setAddStudentSearch('');
         try {
             const res = await api.get('/teacher/courses/0/students');
             const all = res.data.data || [];
@@ -397,6 +420,28 @@ const CourseCurriculum = () => {
     };
 
     const sortedStudents = getSortedStudents(students);
+    const filteredEligibleStudents = eligibleStudents.filter((s) => {
+        const q = addStudentSearch.trim().toLowerCase();
+        if (!q) return true;
+        const name = (s.student_name || '').toLowerCase();
+        const email = (s.student_email || '').toLowerCase();
+        return name.includes(q) || email.includes(q);
+    });
+    const allFilteredEligibleSelected =
+        filteredEligibleStudents.length > 0 &&
+        filteredEligibleStudents.every((s) => selectedStudentIds.includes(s.student_id));
+    const filteredEligibleSelectedCount = filteredEligibleStudents.filter((s) =>
+        selectedStudentIds.includes(s.student_id)
+    ).length;
+    const toggleAllFilteredEligible = (selectAll) => {
+        const ids = filteredEligibleStudents.map((s) => s.student_id);
+        setSelectedStudentIds((prev) => {
+            if (selectAll) {
+                return Array.from(new Set([...prev, ...ids]));
+            }
+            return prev.filter((id) => !ids.includes(id));
+        });
+    };
 
     const getTypeBadge = (type) => {
         switch (type) {
@@ -440,7 +485,15 @@ const CourseCurriculum = () => {
                 </div>
 
                 {activeTab === 'lessons' ? (
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 flex-wrap">
+                        <button
+                            onClick={handleResetCoursePoints}
+                            disabled={resettingPoints}
+                            className="bg-red-50 text-red-700 hover:bg-red-100 px-6 py-3 font-bold tracking-tight flex items-center justify-center gap-2 transition-all border border-red-100 rounded-lg disabled:opacity-60"
+                        >
+                            {resettingPoints ? <Loader2 size={18} className="animate-spin" /> : <RotateCcw size={18} />}
+                            Reset Points
+                        </button>
                         <button
                             onClick={() => {
                                 setCurrentUnit({ title: '', sort_order: units.length + 1 });
@@ -492,6 +545,12 @@ const CourseCurriculum = () => {
                     className={`flex items-center gap-2 pb-2 transition-all duration-200 ${activeTab === 'units' ? 'text-[#0F172A] font-extrabold border-b-2 border-[#0F172A]' : 'text-[#94A3B8] font-bold hover:text-[#0F172A]'}`}
                 >
                     Units ({units.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('competitions')}
+                    className={`flex items-center gap-2 pb-2 transition-all duration-200 ${activeTab === 'competitions' ? 'text-[#0F172A] font-extrabold border-b-2 border-[#0F172A]' : 'text-[#94A3B8] font-bold hover:text-[#0F172A]'}`}
+                >
+                    <Trophy size={16} /> مسابقات
                 </button>
                 <button
                     onClick={() => setActiveTab('settings')}
@@ -573,6 +632,8 @@ const CourseCurriculum = () => {
                     )
                 ) : activeTab === 'chat' ? (
                     <CourseChatPanel courseId={parseInt(courseId, 10)} />
+                ) : activeTab === 'competitions' ? (
+                    <CourseCompetitionPanel courseId={parseInt(courseId, 10)} students={students} />
                 ) : activeTab === 'students' ? (
                     studentsLoading ? (
                         <div className="flex items-center justify-center py-20 gap-3 text-[#64748B] font-semibold">
@@ -741,10 +802,26 @@ const CourseCurriculum = () => {
                         )}
                     </div>
                 ) : (
-                    <div className="py-20 text-center">
-                        <Settings className="mx-auto text-[#94A3B8] mb-4" size={40} />
-                        <p className="font-extrabold text-[#0F172A] text-xl">Module Settings</p>
-                        <p className="text-sm font-semibold text-[#64748B] mt-2">Adjust course pricing, access levels, and visibility.</p>
+                    <div className="py-12 max-w-xl mx-auto space-y-6">
+                        <div className="text-center">
+                            <Settings className="mx-auto text-[#94A3B8] mb-4" size={40} />
+                            <p className="font-extrabold text-[#0F172A] text-xl">Module Settings</p>
+                            <p className="text-sm font-semibold text-[#64748B] mt-2">إدارة إعدادات الكورس والنقاط.</p>
+                        </div>
+                        <div className="border border-red-100 bg-red-50/60 rounded-2xl p-6 text-right">
+                            <h3 className="font-extrabold text-[#0F172A] text-lg mb-2">تصفير نقاط الكورس</h3>
+                            <p className="text-sm font-semibold text-[#64748B] mb-4 leading-relaxed">
+                                يحذف كل نقاط الطلبة لهذا الكورس فقط من قاعدة البيانات (يؤثر على ترتيب الليدربورد داخل الكورس).
+                            </p>
+                            <button
+                                onClick={handleResetCoursePoints}
+                                disabled={resettingPoints}
+                                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 font-bold rounded-lg flex items-center gap-2 disabled:opacity-60 mr-auto"
+                            >
+                                {resettingPoints ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                                Reset Points
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -1027,13 +1104,41 @@ const CourseCurriculum = () => {
                                 <X size={18} />
                             </button>
                         </div>
-                        <div className="max-h-[50vh] overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                        <div className="p-4 border-b border-[#F1F5F9] space-y-3 bg-[#F8FAFC]/60">
+                            <div className="relative">
+                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" size={16} />
+                                <input
+                                    type="text"
+                                    placeholder="ابحث بالاسم أو البريد..."
+                                    value={addStudentSearch}
+                                    onChange={(e) => setAddStudentSearch(e.target.value)}
+                                    className="w-full pr-10 pl-4 py-2.5 border border-[#E2E8F0] rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+                                />
+                            </div>
+                            <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
+                                <p className="text-[#64748B] font-semibold">
+                                    {addStudentSearch.trim()
+                                        ? `${filteredEligibleStudents.length} نتيجة · ${filteredEligibleSelectedCount} محدد`
+                                        : `${eligibleStudents.length} طالب متاح · ${selectedStudentIds.length} محدد`}
+                                </p>
+                                {filteredEligibleStudents.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleAllFilteredEligible(!allFilteredEligibleSelected)}
+                                        className="font-bold text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded-lg hover:bg-indigo-50"
+                                    >
+                                        {allFilteredEligibleSelected ? 'إلغاء تحديد المعروض' : 'تحديد كل المعروض'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <div className="max-h-[42vh] overflow-y-auto p-4 space-y-2 custom-scrollbar">
                             {loadingEligible ? (
                                 <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>
-                            ) : eligibleStudents.length === 0 ? (
+                            ) : filteredEligibleStudents.length === 0 ? (
                                 <p className="text-center text-[#94A3B8] py-10 font-medium">No available students to add</p>
                             ) : (
-                                eligibleStudents.map((s) => (
+                                filteredEligibleStudents.map((s) => (
                                     <label
                                         key={s.student_id}
                                         className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
