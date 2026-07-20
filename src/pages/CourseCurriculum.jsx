@@ -5,11 +5,45 @@ import {
     ChevronLeft, Loader2, PlayCircle, Plus, Layout, Video, FileText,
     CheckCircle, HelpCircle, Award, Clock, Trash2, Edit2,
     List as ListIcon, Layers, Settings, Users, ArrowLeft,
-    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy, MessageCircle, Trophy, Search, RotateCcw
+    ChevronRight, CloudLightning, X, Phone, UserPlus, ChevronUp, ChevronDown, Copy, MessageCircle, Trophy, Search, RotateCcw, GripVertical
 } from 'lucide-react';
 import CourseChatPanel from '../components/CourseChatPanel';
 import CourseCompetitionPanel from '../components/CourseCompetitionPanel';
 import VideoLessonInsightsModal from '../components/VideoLessonInsightsModal';
+import {
+    DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors
+} from '@dnd-kit/core';
+import {
+    SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+const SortableRow = ({ id, children, className }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        zIndex: isDragging ? 10 : 'auto',
+        position: 'relative',
+    };
+    return (
+        <div ref={setNodeRef} style={style} className={className}>
+            {children({ attributes, listeners })}
+        </div>
+    );
+};
+
+const DragHandle = ({ attributes, listeners }) => (
+    <span
+        {...attributes}
+        {...listeners}
+        title="اسحب لإعادة الترتيب"
+        className="cursor-grab active:cursor-grabbing text-[#94A3B8] hover:text-[#0F172A] transition-colors touch-none inline-flex"
+    >
+        <GripVertical size={16} />
+    </span>
+);
 
 const CourseCurriculum = () => {
     const { courseId } = useParams();
@@ -61,6 +95,13 @@ const CourseCurriculum = () => {
     const [copyLessonUnits, setCopyLessonUnits] = useState([]);
     const [copyLessonUnitsLoading, setCopyLessonUnitsLoading] = useState(false);
     const [copyLessonSaving, setCopyLessonSaving] = useState(false);
+
+    const [reorderingUnits, setReorderingUnits] = useState(false);
+    const [reorderingLessonsUnitId, setReorderingLessonsUnitId] = useState(null);
+    const dndSensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
 
     const [addStudentsOpen, setAddStudentsOpen] = useState(false);
     const [eligibleStudents, setEligibleStudents] = useState([]);
@@ -151,6 +192,58 @@ const CourseCurriculum = () => {
             fetchUnits();
         } catch (err) {
             alert('Error deleting unit');
+        }
+    };
+
+    const handleUnitDragEnd = async (event) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const sorted = [...units].sort((a, b) => a.sort_order - b.sort_order);
+        const oldIndex = sorted.findIndex((u) => u.id === active.id);
+        const newIndex = sorted.findIndex((u) => u.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const reordered = arrayMove(sorted, oldIndex, newIndex).map((u, idx) => ({ ...u, sort_order: idx + 1 }));
+        setUnits(reordered);
+        setReorderingUnits(true);
+        try {
+            await api.post('/teacher/units/reorder', {
+                course_id: parseInt(courseId),
+                ordered_ids: reordered.map((u) => u.id),
+            });
+        } catch (err) {
+            alert('فشل حفظ ترتيب الوحدات');
+            fetchUnits();
+        } finally {
+            setReorderingUnits(false);
+        }
+    };
+
+    const handleLessonDragEnd = async (unitId, unitLessons) => async (event) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const oldIndex = unitLessons.findIndex((l) => l.id === active.id);
+        const newIndex = unitLessons.findIndex((l) => l.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const reordered = arrayMove(unitLessons, oldIndex, newIndex).map((l, idx) => ({ ...l, sort_order: idx + 1 }));
+        setLessons((prev) => {
+            const others = prev.filter((l) => l.unit_id !== unitId);
+            return [...others, ...reordered];
+        });
+        setReorderingLessonsUnitId(unitId);
+        try {
+            await api.post('/teacher/lessons/reorder', {
+                unit_id: unitId,
+                ordered_ids: reordered.map((l) => l.id),
+            });
+        } catch (err) {
+            alert('فشل حفظ ترتيب الدروس');
+            fetchCurriculum();
+        } finally {
+            setReorderingLessonsUnitId(null);
         }
     };
 
@@ -575,59 +668,151 @@ const CourseCurriculum = () => {
                             </Link>
                         </div>
                     ) : (
-                        <div className="flex flex-col border-t border-b border-[#E2E8F0] divide-y divide-[#E2E8F0]">
-                            {/* Header Row */}
-                            <div className="grid grid-cols-12 gap-4 py-4 px-2 text-xs font-bold text-[#94A3B8] uppercase tracking-widest hidden md:grid">
-                                <div className="col-span-1">No.</div>
-                                <div className="col-span-5">Lesson Identifier</div>
-                                <div className="col-span-2">Format</div>
-                                <div className="col-span-3">Status</div>
-                                <div className="col-span-1 text-right">Actions</div>
-                            </div>
-
-                            {lessons.map((lesson, idx) => {
-                                const num = (idx + 1).toString().padStart(2, '0');
+                        <div className="space-y-6">
+                            <p className="text-xs font-semibold text-[#94A3B8] px-2 flex items-center gap-1.5">
+                                <GripVertical size={13} /> اسحب أيقونة النقاط لإعادة ترتيب الدروس داخل كل وحدة.
+                            </p>
+                            {[...units].sort((a, b) => a.sort_order - b.sort_order).map((unit) => {
+                                const unitLessons = lessons.filter((l) => l.unit_id === unit.id).sort((a, b) => a.sort_order - b.sort_order);
+                                if (unitLessons.length === 0) return null;
                                 return (
-                                    <div key={lesson.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 py-6 px-2 hover:bg-[#F8FAFC] transition-colors items-center group">
-                                        <div className="col-span-1 font-bold text-[#64748B] hidden md:block">{num}</div>
-                                        <div className="col-span-5">
-                                            <p 
-                                                className={`font-extrabold text-[#0F172A] text-base group-hover:underline decoration-2 underline-offset-2 ${(lesson.type === 'exam' || lesson.type === 'assignment' || lesson.type === 'video') ? 'cursor-pointer text-indigo-700' : ''}`}
-                                                onClick={() => (lesson.type === 'exam' || lesson.type === 'assignment' || lesson.type === 'video') && handleViewSubmissions(lesson)}
-                                            >
-                                                {lesson.title}
-                                            </p>
+                                    <div key={unit.id} className="border border-[#E2E8F0] rounded-2xl overflow-hidden">
+                                        <div className="flex items-center justify-between gap-2 px-4 py-3 bg-[#F8FAFC] border-b border-[#E2E8F0]">
+                                            <div className="flex items-center gap-2">
+                                                <Layers size={15} className="text-indigo-600" />
+                                                <p className="font-extrabold text-[#0F172A] text-sm">{unit.title}</p>
+                                                <span className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">
+                                                    {unitLessons.length} Lesson{unitLessons.length !== 1 ? 's' : ''}
+                                                </span>
+                                            </div>
+                                            {reorderingLessonsUnitId === unit.id && <Loader2 size={14} className="animate-spin text-indigo-500" />}
                                         </div>
-                                        <div className="col-span-2">
-                                            {getTypeBadge(lesson.type)}
+                                        <DndContext
+                                            sensors={dndSensors}
+                                            collisionDetection={closestCenter}
+                                            onDragEnd={handleLessonDragEnd(unit.id, unitLessons)}
+                                        >
+                                            <SortableContext items={unitLessons.map((l) => l.id)} strategy={verticalListSortingStrategy}>
+                                                <div className="divide-y divide-[#F1F5F9]">
+                                                    {unitLessons.map((lesson, idx) => {
+                                                        const num = (idx + 1).toString().padStart(2, '0');
+                                                        return (
+                                                            <SortableRow
+                                                                key={lesson.id}
+                                                                id={lesson.id}
+                                                                className="grid grid-cols-1 md:grid-cols-12 gap-4 py-5 px-4 hover:bg-[#F8FAFC] transition-colors items-center group"
+                                                            >
+                                                                {(dragHandle) => (
+                                                                    <>
+                                                                        <div className="col-span-1 font-bold text-[#64748B] hidden md:flex items-center gap-2">
+                                                                            <DragHandle {...dragHandle} />
+                                                                            {num}
+                                                                        </div>
+                                                                        <div className="col-span-5">
+                                                                            <p
+                                                                                className={`font-extrabold text-[#0F172A] text-base group-hover:underline decoration-2 underline-offset-2 ${(lesson.type === 'exam' || lesson.type === 'assignment' || lesson.type === 'video') ? 'cursor-pointer text-indigo-700' : ''}`}
+                                                                                onClick={() => (lesson.type === 'exam' || lesson.type === 'assignment' || lesson.type === 'video') && handleViewSubmissions(lesson)}
+                                                                            >
+                                                                                {lesson.title}
+                                                                            </p>
+                                                                        </div>
+                                                                        <div className="col-span-2">
+                                                                            {getTypeBadge(lesson.type)}
+                                                                        </div>
+                                                                        <div className="col-span-3 flex items-center gap-2 text-sm text-[#0F172A] font-semibold">
+                                                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Published
+                                                                        </div>
+                                                                        <div className="col-span-1 text-right flex justify-end gap-2">
+                                                                            <button
+                                                                                onClick={() => openCopyLesson(lesson)}
+                                                                                title="نسخ الدرس إلى كورس آخر"
+                                                                                className="text-[#94A3B8] hover:text-indigo-600 transition-all"
+                                                                            >
+                                                                                <Copy size={16} />
+                                                                            </button>
+                                                                            <Link
+                                                                                to={`/teacher/courses/${courseId}/lessons/${lesson.id}/edit`}
+                                                                                className="text-[#94A3B8] hover:text-[#0F172A] transition-all"
+                                                                            >
+                                                                                <Edit2 size={18} />
+                                                                            </Link>
+                                                                            <button
+                                                                                onClick={() => handleDeleteLesson(lesson.id)}
+                                                                                className="text-[#94A3B8] hover:text-red-600 transition-all"
+                                                                            >
+                                                                                <Trash2 size={18} />
+                                                                            </button>
+                                                                        </div>
+                                                                    </>
+                                                                )}
+                                                            </SortableRow>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </SortableContext>
+                                        </DndContext>
+                                    </div>
+                                );
+                            })}
+
+                            {(() => {
+                                const unitIds = new Set(units.map((u) => u.id));
+                                const noUnitLessons = lessons.filter((l) => !unitIds.has(l.unit_id)).sort((a, b) => a.sort_order - b.sort_order);
+                                if (noUnitLessons.length === 0) return null;
+                                return (
+                                    <div className="border border-amber-200 rounded-2xl overflow-hidden">
+                                        <div className="px-4 py-3 bg-amber-50 border-b border-amber-200">
+                                            <p className="font-extrabold text-amber-800 text-sm">دروس بدون وحدة</p>
+                                            <p className="text-[11px] text-amber-700 font-semibold mt-0.5">اربط هذه الدروس بوحدة من زر التعديل حتى تقدر تعيد ترتيبها.</p>
                                         </div>
-                                        <div className="col-span-3 flex items-center gap-2 text-sm text-[#0F172A] font-semibold">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Published
-                                        </div>
-                                        <div className="col-span-1 text-right flex justify-end gap-2">
-                                            <button
-                                                onClick={() => openCopyLesson(lesson)}
-                                                title="نسخ الدرس إلى كورس آخر"
-                                                className="text-[#94A3B8] hover:text-indigo-600 transition-all"
-                                            >
-                                                <Copy size={16} />
-                                            </button>
-                                            <Link
-                                                to={`/teacher/courses/${courseId}/lessons/${lesson.id}/edit`}
-                                                className="text-[#94A3B8] hover:text-[#0F172A] transition-all"
-                                            >
-                                                <Edit2 size={18} />
-                                            </Link>
-                                            <button
-                                                onClick={() => handleDeleteLesson(lesson.id)}
-                                                className="text-[#94A3B8] hover:text-red-600 transition-all"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
+                                        <div className="divide-y divide-[#F1F5F9]">
+                                            {noUnitLessons.map((lesson, idx) => {
+                                                const num = (idx + 1).toString().padStart(2, '0');
+                                                return (
+                                                    <div key={lesson.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 py-5 px-4 hover:bg-[#F8FAFC] transition-colors items-center group">
+                                                        <div className="col-span-1 font-bold text-[#64748B] hidden md:block">{num}</div>
+                                                        <div className="col-span-5">
+                                                            <p
+                                                                className={`font-extrabold text-[#0F172A] text-base group-hover:underline decoration-2 underline-offset-2 ${(lesson.type === 'exam' || lesson.type === 'assignment' || lesson.type === 'video') ? 'cursor-pointer text-indigo-700' : ''}`}
+                                                                onClick={() => (lesson.type === 'exam' || lesson.type === 'assignment' || lesson.type === 'video') && handleViewSubmissions(lesson)}
+                                                            >
+                                                                {lesson.title}
+                                                            </p>
+                                                        </div>
+                                                        <div className="col-span-2">
+                                                            {getTypeBadge(lesson.type)}
+                                                        </div>
+                                                        <div className="col-span-3 flex items-center gap-2 text-sm text-[#0F172A] font-semibold">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Published
+                                                        </div>
+                                                        <div className="col-span-1 text-right flex justify-end gap-2">
+                                                            <button
+                                                                onClick={() => openCopyLesson(lesson)}
+                                                                title="نسخ الدرس إلى كورس آخر"
+                                                                className="text-[#94A3B8] hover:text-indigo-600 transition-all"
+                                                            >
+                                                                <Copy size={16} />
+                                                            </button>
+                                                            <Link
+                                                                to={`/teacher/courses/${courseId}/lessons/${lesson.id}/edit`}
+                                                                className="text-[#94A3B8] hover:text-[#0F172A] transition-all"
+                                                            >
+                                                                <Edit2 size={18} />
+                                                            </Link>
+                                                            <button
+                                                                onClick={() => handleDeleteLesson(lesson.id)}
+                                                                className="text-[#94A3B8] hover:text-red-600 transition-all"
+                                                            >
+                                                                <Trash2 size={18} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
-                                )
-                            })}
+                                );
+                            })()}
                         </div>
                     )
                 ) : activeTab === 'chat' ? (
@@ -764,8 +949,11 @@ const CourseCurriculum = () => {
                     )
                 ) : activeTab === 'units' ? (
                     <div className="flex flex-col border-t border-b border-[#E2E8F0] divide-y divide-[#E2E8F0]">
-                        <div className="grid grid-cols-12 gap-4 py-4 px-2 text-xs font-bold text-[#94A3B8] uppercase tracking-widest hidden md:grid">
-                            <div className="col-span-1">Order</div>
+                        <div className="grid grid-cols-12 gap-4 py-4 px-2 text-xs font-bold text-[#94A3B8] uppercase tracking-widest hidden md:grid items-center">
+                            <div className="col-span-1 flex items-center gap-2">
+                                Order
+                                {reorderingUnits && <Loader2 size={12} className="animate-spin text-indigo-500" />}
+                            </div>
                             <div className="col-span-8">Unit Title</div>
                             <div className="col-span-3 text-right">Actions</div>
                         </div>
@@ -776,29 +964,44 @@ const CourseCurriculum = () => {
                                 <p className="text-sm font-semibold text-[#64748B] mt-2">Units help organize lessons into logical sections.</p>
                             </div>
                         ) : (
-                            units.sort((a,b) => a.sort_order - b.sort_order).map((unit) => (
-                                <div key={unit.id} className="grid grid-cols-12 gap-4 py-6 px-2 hover:bg-[#F8FAFC] transition-colors items-center group">
-                                    <div className="col-span-1 font-bold text-[#64748B]">{unit.sort_order}</div>
-                                    <div className="col-span-8">
-                                        <p className="font-extrabold text-[#0F172A] text-base">{unit.title}</p>
-                                    </div>
-                                    <div className="col-span-3 text-right flex justify-end gap-2">
-                                        <button
-                                            onClick={() => openCopyUnit(unit)}
-                                            title="نسخ الوحدة إلى كورس آخر"
-                                            className="text-[#94A3B8] hover:text-indigo-600 transition-all"
+                            <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleUnitDragEnd}>
+                                <SortableContext items={[...units].sort((a, b) => a.sort_order - b.sort_order).map((u) => u.id)} strategy={verticalListSortingStrategy}>
+                                    {[...units].sort((a, b) => a.sort_order - b.sort_order).map((unit) => (
+                                        <SortableRow
+                                            key={unit.id}
+                                            id={unit.id}
+                                            className="grid grid-cols-12 gap-4 py-6 px-2 hover:bg-[#F8FAFC] transition-colors items-center group"
                                         >
-                                            <Copy size={16} />
-                                        </button>
-                                        <button onClick={() => { setCurrentUnit(unit); setUnitModalOpen(true); }} className="text-[#94A3B8] hover:text-[#0F172A] transition-all">
-                                            <Edit2 size={18} />
-                                        </button>
-                                        <button onClick={() => handleDeleteUnit(unit.id)} className="text-[#94A3B8] hover:text-red-600 transition-all">
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
+                                            {(dragHandle) => (
+                                                <>
+                                                    <div className="col-span-1 font-bold text-[#64748B] flex items-center gap-2">
+                                                        <DragHandle {...dragHandle} />
+                                                        {unit.sort_order}
+                                                    </div>
+                                                    <div className="col-span-8">
+                                                        <p className="font-extrabold text-[#0F172A] text-base">{unit.title}</p>
+                                                    </div>
+                                                    <div className="col-span-3 text-right flex justify-end gap-2">
+                                                        <button
+                                                            onClick={() => openCopyUnit(unit)}
+                                                            title="نسخ الوحدة إلى كورس آخر"
+                                                            className="text-[#94A3B8] hover:text-indigo-600 transition-all"
+                                                        >
+                                                            <Copy size={16} />
+                                                        </button>
+                                                        <button onClick={() => { setCurrentUnit(unit); setUnitModalOpen(true); }} className="text-[#94A3B8] hover:text-[#0F172A] transition-all">
+                                                            <Edit2 size={18} />
+                                                        </button>
+                                                        <button onClick={() => handleDeleteUnit(unit.id)} className="text-[#94A3B8] hover:text-red-600 transition-all">
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </SortableRow>
+                                    ))}
+                                </SortableContext>
+                            </DndContext>
                         )}
                     </div>
                 ) : (

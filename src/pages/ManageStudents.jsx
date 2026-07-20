@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import {
     Loader2, Users, Search, CheckCircle, XCircle,
-    BookOpen, TrendingUp, ChevronDown, ChevronUp, Award, Plus, X, Phone, Key, UserPlus, Trash2, RotateCcw, Edit
+    BookOpen, TrendingUp, ChevronDown, ChevronUp, Award, Plus, X, Phone, Key, UserPlus, Trash2, RotateCcw, Edit, Smartphone, Globe
 } from 'lucide-react';
 
 const ManageStudents = () => {
@@ -28,7 +28,8 @@ const ManageStudents = () => {
         date_of_birth: '',
         notes: '',
         parent_phone: '',
-        parent_job: ''
+        parent_job: '',
+        allow_any_device: false
     });
     const [newEnrollment, setNewEnrollment] = useState({ name: '', email: '', course_id: '' });
     const [parentData, setParentData] = useState({ 
@@ -135,7 +136,8 @@ const ManageStudents = () => {
             setNewStudent({ 
                 name: '', phone: '', email: '', password: '', 
                 grade_id: '', address: '', school_name: '', 
-                date_of_birth: '', notes: '', parent_phone: '', parent_job: '' 
+                date_of_birth: '', notes: '', parent_phone: '', parent_job: '',
+                allow_any_device: false
             });
             setIsEditing(false);
             setEditingStudentId(null);
@@ -176,7 +178,8 @@ const ManageStudents = () => {
             date_of_birth: student.date_of_birth || '',
             notes: student.notes || '',
             parent_phone: student.parent_phone || '',
-            parent_job: student.parent_job || ''
+            parent_job: student.parent_job || '',
+            allow_any_device: student.allow_any_device || false
         });
         setIsEditing(true);
         setEditingStudentId(student.student_id || student.id);
@@ -889,6 +892,26 @@ const ManageStudents = () => {
                                 </div>
                             </div>
 
+                            <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+                                newStudent.allow_any_device ? 'border-indigo-300 bg-indigo-50' : 'border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#F1F5F9]'
+                            }`}>
+                                <input
+                                    type="checkbox"
+                                    checked={newStudent.allow_any_device}
+                                    onChange={e => setNewStudent({ ...newStudent, allow_any_device: e.target.checked })}
+                                    className="w-4 h-4 mt-1 accent-indigo-600 shrink-0"
+                                />
+                                <div>
+                                    <p className="text-sm font-bold text-[#0F172A] flex items-center gap-2">
+                                        {newStudent.allow_any_device ? <Globe size={16} className="text-indigo-600" /> : <Smartphone size={16} className="text-[#94A3B8]" />}
+                                        طالب عام (يفتح من أي جهاز)
+                                    </p>
+                                    <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
+                                        لو مفعّل، الطالب هيقدر يسجل دخول من أي جهاز بدون قفل جهاز واحد. لو غير مفعّل، الحساب هيفتح من الجهاز الأول اللي يسجل دخول منه بس (السلوك الافتراضي).
+                                    </p>
+                                </div>
+                            </label>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-sm font-bold text-[#0F172A] mb-1.5 block">School Name</label>
@@ -1079,6 +1102,10 @@ const ManageStudents = () => {
                                         </button>
                                         <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${selectedStudentDetails.activation_status ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
                                             {selectedStudentDetails.activation_status ? 'Active' : 'Deactivated'}
+                                        </span>
+                                        <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 ${selectedStudentDetails.allow_any_device ? 'bg-indigo-50 text-indigo-600' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
+                                            {selectedStudentDetails.allow_any_device ? <Globe size={11} /> : <Smartphone size={11} />}
+                                            {selectedStudentDetails.allow_any_device ? 'طالب عام' : 'جهاز واحد'}
                                         </span>
                                     </div>
                                 </div>
