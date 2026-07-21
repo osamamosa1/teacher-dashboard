@@ -200,8 +200,8 @@ const CourseCurriculum = () => {
         if (!over || active.id === over.id) return;
 
         const sorted = [...units].sort((a, b) => a.sort_order - b.sort_order);
-        const oldIndex = sorted.findIndex((u) => u.id === active.id);
-        const newIndex = sorted.findIndex((u) => u.id === over.id);
+        const oldIndex = sorted.findIndex((u) => String(u.id) === String(active.id));
+        const newIndex = sorted.findIndex((u) => String(u.id) === String(over.id));
         if (oldIndex === -1 || newIndex === -1) return;
 
         const reordered = arrayMove(sorted, oldIndex, newIndex).map((u, idx) => ({ ...u, sort_order: idx + 1 }));
@@ -220,17 +220,20 @@ const CourseCurriculum = () => {
         }
     };
 
-    const handleLessonDragEnd = async (unitId, unitLessons) => async (event) => {
+    // NOTE: outer function must NOT be async — if it is, React receives a Promise
+    // as onDragEnd (not a handler), dnd never saves, and the row snaps back.
+    // Units work because handleUnitDragEnd is a direct function reference.
+    const handleLessonDragEnd = (unitId, unitLessons) => async (event) => {
         const { active, over } = event;
         if (!over || active.id === over.id) return;
 
-        const oldIndex = unitLessons.findIndex((l) => l.id === active.id);
-        const newIndex = unitLessons.findIndex((l) => l.id === over.id);
+        const oldIndex = unitLessons.findIndex((l) => String(l.id) === String(active.id));
+        const newIndex = unitLessons.findIndex((l) => String(l.id) === String(over.id));
         if (oldIndex === -1 || newIndex === -1) return;
 
         const reordered = arrayMove(unitLessons, oldIndex, newIndex).map((l, idx) => ({ ...l, sort_order: idx + 1 }));
         setLessons((prev) => {
-            const others = prev.filter((l) => l.unit_id !== unitId);
+            const others = prev.filter((l) => String(l.unit_id) !== String(unitId));
             return [...others, ...reordered];
         });
         setReorderingLessonsUnitId(unitId);

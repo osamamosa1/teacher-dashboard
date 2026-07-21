@@ -885,23 +885,72 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
                             <h3 className="font-extrabold">أسئلة الجولة (لا تؤثر على الامتحان الأصلي)</h3>
                             <button onClick={() => { setEditQuestions(null); setEditRoundId(null); }}><X size={20} /></button>
                         </div>
-                        <div className="p-4 border-b bg-slate-50 space-y-2">
+                        <div className="p-4 border-b bg-slate-50 space-y-3">
                             <p className="text-xs font-bold text-slate-600">نسخ من امتحان لهذه الجولة فقط:</p>
-                            <div className="grid md:grid-cols-2 gap-2 max-h-24 overflow-y-auto">
-                                {(availableExams.course_exams || []).map(ex => (
-                                    <label key={ex.id} className="flex items-center gap-2 text-xs">
-                                        <input type="checkbox" checked={copyExamForm.lesson.includes(ex.id)} onChange={() => setCopyExamForm(f => ({ ...f, lesson: f.lesson.includes(ex.id) ? f.lesson.filter(x => x !== ex.id) : [...f.lesson, ex.id] }))} />
-                                        {ex.title}
-                                    </label>
-                                ))}
-                                {(availableExams.standalone_exams || []).map(ex => (
-                                    <label key={ex.id} className="flex items-center gap-2 text-xs">
-                                        <input type="checkbox" checked={copyExamForm.standalone.includes(ex.id)} onChange={() => setCopyExamForm(f => ({ ...f, standalone: f.standalone.includes(ex.id) ? f.standalone.filter(x => x !== ex.id) : [...f.standalone, ex.id] }))} />
-                                        {ex.title} (مستقل)
-                                    </label>
-                                ))}
+                            <div className="max-h-48 overflow-y-auto space-y-3 pr-1">
+                                {(availableExams.course_exams || []).length > 0 && (
+                                    <div>
+                                        <p className="text-[11px] font-bold text-slate-500 mb-2">امتحانات المنهج</p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {(availableExams.course_exams || []).map(ex => (
+                                                <label
+                                                    key={`lesson-${ex.id}`}
+                                                    className="flex flex-col items-start gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/40"
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                        checked={copyExamForm.lesson.includes(ex.id)}
+                                                        onChange={() => setCopyExamForm(f => ({
+                                                            ...f,
+                                                            lesson: f.lesson.includes(ex.id)
+                                                                ? f.lesson.filter(x => x !== ex.id)
+                                                                : [...f.lesson, ex.id],
+                                                        }))}
+                                                    />
+                                                    <span className="font-medium text-slate-700 leading-snug line-clamp-2">{ex.title}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {(availableExams.standalone_exams || []).length > 0 && (
+                                    <div>
+                                        <p className="text-[11px] font-bold text-slate-500 mb-2">امتحانات مستقلة</p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {(availableExams.standalone_exams || []).map(ex => (
+                                                <label
+                                                    key={`standalone-${ex.id}`}
+                                                    className="flex flex-col items-start gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/40"
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                        checked={copyExamForm.standalone.includes(ex.id)}
+                                                        onChange={() => setCopyExamForm(f => ({
+                                                            ...f,
+                                                            standalone: f.standalone.includes(ex.id)
+                                                                ? f.standalone.filter(x => x !== ex.id)
+                                                                : [...f.standalone, ex.id],
+                                                        }))}
+                                                    />
+                                                    <span className="font-medium text-slate-700 leading-snug line-clamp-2">{ex.title}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {(availableExams.course_exams || []).length === 0 && (availableExams.standalone_exams || []).length === 0 && (
+                                    <p className="text-xs text-slate-400 py-2">لا توجد امتحانات متاحة للنسخ</p>
+                                )}
                             </div>
-                            <button onClick={() => copyExamToRound(competitions[activeType])} className="text-xs font-bold text-indigo-600">نسخ المحدد للجولة</button>
+                            <button
+                                type="button"
+                                onClick={() => copyExamToRound(competitions[activeType])}
+                                className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                            >
+                                نسخ المحدد للجولة
+                            </button>
                         </div>
                         <div className="overflow-y-auto flex-1 p-4 space-y-5">
                             {editQuestions.map((q, qi) => (
