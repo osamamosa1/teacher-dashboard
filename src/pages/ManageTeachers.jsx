@@ -95,7 +95,7 @@ const ManageTeachers = () => {
             await api.delete(`/admin/teachers/${id}`);
             fetchData();
         } catch (err) {
-            alert('Failed to delete teacher. They may have active courses or students.');
+            alert('Failed to delete teacher.');
         }
     };
 
