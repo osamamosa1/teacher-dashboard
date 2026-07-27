@@ -7,6 +7,7 @@ import ManageCourses from './pages/ManageCourses';
 import CourseCurriculum from './pages/CourseCurriculum';
 import LessonForm from './pages/LessonForm';
 import ManageStudents from './pages/ManageStudents';
+import ManageAssistants from './pages/ManageAssistants';
 import ManageParents from './pages/ManageParents';
 import ManageSubjects from './pages/ManageSubjects';
 import Profile from './pages/Profile';
@@ -85,7 +86,7 @@ function App() {
         } />
 
         <Route path="/teacher" element={
-          <ProtectedRoute allowedRoles={['teacher']}>
+          <ProtectedRoute allowedRoles={['teacher', 'assistant']}>
             <Layout>
               <TeacherDashboard />
             </Layout>
@@ -93,7 +94,7 @@ function App() {
         } />
 
         <Route path="/teacher/courses" element={
-          <ProtectedRoute allowedRoles={['teacher']}>
+          <ProtectedRoute allowedRoles={['teacher', 'assistant']}>
             <Layout>
               <ManageCourses />
             </Layout>
@@ -101,7 +102,7 @@ function App() {
         } />
 
         <Route path="/teacher/grades" element={
-          <ProtectedRoute allowedRoles={['teacher']}>
+          <ProtectedRoute allowedRoles={['teacher', 'assistant']}>
             <Layout>
               <ManageGrades />
             </Layout>
@@ -125,7 +126,7 @@ function App() {
         } />
 
         <Route path="/teacher/courses/:courseId" element={
-          <ProtectedRoute allowedRoles={['teacher']}>
+          <ProtectedRoute allowedRoles={['teacher', 'assistant']}>
             <Layout>
               <CourseCurriculum />
             </Layout>
@@ -133,15 +134,23 @@ function App() {
         } />
 
         <Route path="/teacher/students" element={
-          <ProtectedRoute allowedRoles={['teacher']}>
+          <ProtectedRoute allowedRoles={['teacher', 'assistant']}>
             <Layout>
               <ManageStudents />
             </Layout>
           </ProtectedRoute>
         } />
 
-        <Route path="/teacher/courses/:courseId/lessons/new" element={
+        <Route path="/teacher/assistants" element={
           <ProtectedRoute allowedRoles={['teacher']}>
+            <Layout>
+              <ManageAssistants />
+            </Layout>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/teacher/courses/:courseId/lessons/new" element={
+          <ProtectedRoute allowedRoles={['teacher', 'assistant']}>
             <Layout>
               <LessonForm />
             </Layout>
@@ -149,7 +158,7 @@ function App() {
         } />
 
         <Route path="/teacher/courses/:courseId/lessons/:lessonId/edit" element={
-          <ProtectedRoute allowedRoles={['teacher']}>
+          <ProtectedRoute allowedRoles={['teacher', 'assistant']}>
             <Layout>
               <LessonForm />
             </Layout>
@@ -157,7 +166,7 @@ function App() {
         } />
 
         <Route path="/teacher/current-exams" element={
-          <ProtectedRoute allowedRoles={['teacher']}>
+          <ProtectedRoute allowedRoles={['teacher', 'assistant']}>
             <Layout>
               <CurrentExams />
             </Layout>
@@ -165,7 +174,7 @@ function App() {
         } />
 
         <Route path="/profile" element={
-          <ProtectedRoute allowedRoles={['teacher']}>
+          <ProtectedRoute allowedRoles={['teacher', 'assistant']}>
             <Layout>
               <Profile />
             </Layout>

@@ -56,6 +56,10 @@ const CourseCurriculum = () => {
     const [studentsLoading, setStudentsLoading] = useState(false);
     const [parentModalOpen, setParentModalOpen] = useState(false);
     const [saving, setSaving] = useState(false);
+
+    const rawUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = rawUser.user || rawUser;
+    const isAssistant = user.role === 'assistant';
     const [parentData, setParentData] = useState({ 
         student_id: null, 
         student_name: '', 
@@ -383,11 +387,14 @@ const CourseCurriculum = () => {
         }
     };
 
-    const handleViewStudentResult = async (studentId) => {
+    const handleViewStudentResult = async (studentId, submissionId) => {
         setLoadingResult(true);
         setResultModalOpen(true);
         try {
-            const res = await api.get(`/student/exam/${selectedQuiz.id}/result?studentId=${studentId}`);
+            const url = submissionId
+                ? `/student/exam/${selectedQuiz.id}/result?studentId=${studentId}&submissionId=${submissionId}`
+                : `/student/exam/${selectedQuiz.id}/result?studentId=${studentId}`;
+            const res = await api.get(url);
             setSelectedStudentResult(res.data.data);
         } catch (err) {
             console.error('Error fetching result:', err);
@@ -582,14 +589,16 @@ const CourseCurriculum = () => {
 
                 {activeTab === 'lessons' ? (
                     <div className="flex gap-3 flex-wrap">
-                        <button
-                            onClick={handleResetCoursePoints}
-                            disabled={resettingPoints}
-                            className="bg-red-50 text-red-700 hover:bg-red-100 px-6 py-3 font-bold tracking-tight flex items-center justify-center gap-2 transition-all border border-red-100 rounded-lg disabled:opacity-60"
-                        >
-                            {resettingPoints ? <Loader2 size={18} className="animate-spin" /> : <RotateCcw size={18} />}
-                            Reset Points
-                        </button>
+                        {!isAssistant && (
+                            <button
+                                onClick={handleResetCoursePoints}
+                                disabled={resettingPoints}
+                                className="bg-red-50 text-red-700 hover:bg-red-100 px-6 py-3 font-bold tracking-tight flex items-center justify-center gap-2 transition-all border border-red-100 rounded-lg disabled:opacity-60"
+                            >
+                                {resettingPoints ? <Loader2 size={18} className="animate-spin" /> : <RotateCcw size={18} />}
+                                Reset Points
+                            </button>
+                        )}
                         <button
                             onClick={() => {
                                 setCurrentUnit({ title: '', sort_order: units.length + 1 });
@@ -599,12 +608,14 @@ const CourseCurriculum = () => {
                         >
                             <Layers size={18} /> Manage Units
                         </button>
-                        <Link
-                            to={`/teacher/courses/${courseId}/lessons/new`}
-                            className="bg-[#0F172A] hover:bg-black text-white px-6 py-3 font-bold tracking-tight flex items-center justify-center gap-2 transition-all"
-                        >
-                            <Plus size={18} /> Add New Lesson
-                        </Link>
+                        {!isAssistant && (
+                            <Link
+                                to={`/teacher/courses/${courseId}/lessons/new`}
+                                className="bg-[#0F172A] hover:bg-black text-white px-6 py-3 font-bold tracking-tight flex items-center justify-center gap-2 transition-all"
+                            >
+                                <Plus size={18} /> Add New Lesson
+                            </Link>
+                        )}
                     </div>
                 ) : (
                     <Link
@@ -739,12 +750,14 @@ const CourseCurriculum = () => {
                                                                             >
                                                                                 <Edit2 size={18} />
                                                                             </Link>
-                                                                            <button
-                                                                                onClick={() => handleDeleteLesson(lesson.id)}
-                                                                                className="text-[#94A3B8] hover:text-red-600 transition-all"
-                                                                            >
-                                                                                <Trash2 size={18} />
-                                                                            </button>
+                                                                            {!isAssistant && (
+                                                                                <button
+                                                                                    onClick={() => handleDeleteLesson(lesson.id)}
+                                                                                    className="text-[#94A3B8] hover:text-red-600 transition-all"
+                                                                                >
+                                                                                    <Trash2 size={18} />
+                                                                                </button>
+                                                                            )}
                                                                         </div>
                                                                     </>
                                                                 )}
@@ -802,12 +815,14 @@ const CourseCurriculum = () => {
                                                             >
                                                                 <Edit2 size={18} />
                                                             </Link>
-                                                            <button
-                                                                onClick={() => handleDeleteLesson(lesson.id)}
-                                                                className="text-[#94A3B8] hover:text-red-600 transition-all"
-                                                            >
-                                                                <Trash2 size={18} />
-                                                            </button>
+                                                            {!isAssistant && (
+                                                                <button
+                                                                    onClick={() => handleDeleteLesson(lesson.id)}
+                                                                    className="text-[#94A3B8] hover:text-red-600 transition-all"
+                                                                >
+                                                                    <Trash2 size={18} />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 );
@@ -995,9 +1010,11 @@ const CourseCurriculum = () => {
                                                         <button onClick={() => { setCurrentUnit(unit); setUnitModalOpen(true); }} className="text-[#94A3B8] hover:text-[#0F172A] transition-all">
                                                             <Edit2 size={18} />
                                                         </button>
-                                                        <button onClick={() => handleDeleteUnit(unit.id)} className="text-[#94A3B8] hover:text-red-600 transition-all">
-                                                            <Trash2 size={18} />
-                                                        </button>
+                                                        {!isAssistant && (
+                                                            <button onClick={() => handleDeleteUnit(unit.id)} className="text-[#94A3B8] hover:text-red-600 transition-all">
+                                                                <Trash2 size={18} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </>
                                             )}
@@ -1233,8 +1250,8 @@ const CourseCurriculum = () => {
                                 <div className="space-y-4">
                                     {quizSubmissions.map(sub => (
                                         <div 
-                                            key={sub.student_id} 
-                                            onClick={() => handleViewStudentResult(sub.student_id)}
+                                            key={sub.id} 
+                                            onClick={() => handleViewStudentResult(sub.student_id, sub.id)}
                                             className="flex items-center justify-between p-4 rounded-2xl border border-[#F1F5F9] bg-[#F8FAFC]/30 hover:bg-white hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer group/item"
                                         >
                                             <div className="flex items-center gap-4">

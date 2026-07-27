@@ -56,6 +56,10 @@ const ManageStudents = () => {
     const queryParams = new URLSearchParams(location.search);
     const courseIdFilter = queryParams.get('courseId');
 
+    const rawUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = rawUser.user || rawUser;
+    const isAssistant = user.role === 'assistant';
+
     useEffect(() => {
         fetchInitialData();
         fetchCourses();
@@ -630,13 +634,15 @@ const ManageStudents = () => {
                                                     ? <XCircle size={18} />
                                                     : <CheckCircle size={18} />}
                                         </button>
-                                        <button
-                                            onClick={() => handleDeleteStudent(student)}
-                                            title="Delete Student Account"
-                                            className="w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center bg-red-100 text-red-600 hover:bg-red-600 hover:text-white transition-all font-bold"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                        {!isAssistant && (
+                                            <button
+                                                onClick={() => handleDeleteStudent(student)}
+                                                title="Delete Student Account"
+                                                className="w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center bg-red-100 text-red-600 hover:bg-red-600 hover:text-white transition-all font-bold"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 
@@ -691,9 +697,7 @@ const ManageStudents = () => {
                                                                                 }`}
                                                                             style={{ width: `${course.progress}%` }}
                                                                         />
-                                                                    </div>
-                                                                <span className="text-xs font-black text-[#64748B] w-8 text-right shrink-0">{course.progress}%</span>
-                                                                </div>
+                                                                    </div>                                                                </div>
                                                             </div>
                                                             <div className="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
                                                                 <button 
@@ -703,13 +707,15 @@ const ManageStudents = () => {
                                                                 >
                                                                     <RotateCcw size={16} strokeWidth={3} />
                                                                 </button>
-                                                                <button 
-                                                                    onClick={(e) => { e.stopPropagation(); handleRemoveEnrollment(student.student_id, course.id); }}
-                                                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-red-300 hover:text-red-500 hover:bg-red-50 transition-all"
-                                                                    title="Remove Enrollment"
-                                                                >
-                                                                    <Trash2 size={16} />
-                                                                </button>
+                                                                {!isAssistant && (
+                                                                    <button 
+                                                                        onClick={(e) => { e.stopPropagation(); handleRemoveEnrollment(student.student_id, course.id); }}
+                                                                        className="w-8 h-8 rounded-lg flex items-center justify-center text-red-300 hover:text-red-500 hover:bg-red-50 transition-all"
+                                                                        title="Remove Enrollment"
+                                                                    >
+                                                                        <Trash2 size={16} />
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     ))}

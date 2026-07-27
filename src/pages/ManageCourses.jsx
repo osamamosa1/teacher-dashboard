@@ -25,6 +25,10 @@ const ManageCourses = () => {
         is_popular: false
     });
 
+    const rawUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = rawUser.user || rawUser;
+    const isAssistant = user.role === 'assistant';
+
 
     const [saving, setSaving] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -178,12 +182,14 @@ const ManageCourses = () => {
                     >
                         <Award size={18} className="text-[#64748B]" /> Manage Grades
                     </Link>
-                    <button
-                        onClick={() => setCourseModalOpen(true)}
-                        className="bg-indigo-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl font-bold tracking-tight shadow-lg shadow-indigo-900/10 flex items-center justify-center gap-2 transition-all active:scale-95"
-                    >
-                        <Plus size={20} /> Create New Course
-                    </button>
+                    {!isAssistant && (
+                        <button
+                            onClick={() => setCourseModalOpen(true)}
+                            className="bg-indigo-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl font-bold tracking-tight shadow-lg shadow-indigo-900/10 flex items-center justify-center gap-2 transition-all active:scale-95"
+                        >
+                            <Plus size={20} /> Create New Course
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -272,13 +278,15 @@ const ManageCourses = () => {
                                     >
                                         <Edit size={18} />
                                     </button>
-                                    <button
-                                        className="w-10 h-10 bg-white/90 backdrop-blur-sm text-red-500 hover:bg-red-500 hover:text-white rounded-xl shadow-lg flex items-center justify-center transition-all duration-300"
-                                        onClick={(e) => handleDeleteCourse(course.id, e)}
-                                        title="Delete Course"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
+                                    {!isAssistant && (
+                                        <button
+                                            className="w-10 h-10 bg-white/90 backdrop-blur-sm text-red-500 hover:bg-red-500 hover:text-white rounded-xl shadow-lg flex items-center justify-center transition-all duration-300"
+                                            onClick={(e) => handleDeleteCourse(course.id, e)}
+                                            title="Delete Course"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 

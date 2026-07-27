@@ -71,6 +71,7 @@ const Login = () => {
             localStorage.setItem("user", JSON.stringify(user));
 
             if (user.role === "admin") navigate("/admin");
+            else if (user.role === "assistant") navigate("/teacher/courses");
             else navigate("/teacher");
         } catch (err) {
             setError(

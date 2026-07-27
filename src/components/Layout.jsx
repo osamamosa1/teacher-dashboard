@@ -15,6 +15,7 @@ const Layout = ({ children }) => {
     const rawUser = JSON.parse(localStorage.getItem('user') || '{}');
     const user = rawUser.user || rawUser; // Handle nested user object
     const isAdmin = user.role === 'admin';
+    const isAssistant = user.role === 'assistant';
     const isImpersonating = !!localStorage.getItem('impersonation_admin_token');
     const impersonatedTeacherName = localStorage.getItem('impersonation_teacher_name') || user.name;
 
@@ -89,9 +90,11 @@ const Layout = ({ children }) => {
                 </div>
 
                 <nav className="flex-1 space-y-1">
-                    <NavLink to={isAdmin ? "/admin" : "/teacher"} end className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-                        <LayoutDashboard size={20} /> <span className="nav-text">Overview</span>
-                    </NavLink>
+                    {!isAssistant && (
+                        <NavLink to={isAdmin ? "/admin" : "/teacher"} end className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                            <LayoutDashboard size={20} /> <span className="nav-text">Overview</span>
+                        </NavLink>
+                    )}
 
                     {isAdmin ? (
                         <>
@@ -113,15 +116,24 @@ const Layout = ({ children }) => {
                             <NavLink to="/teacher/students" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
                                 <Users size={20} /> <span className="nav-text">Students</span>
                             </NavLink>
-                            <NavLink to="/teacher/parents" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-                                <PieChart size={20} /> <span className="nav-text">Parents</span>
-                            </NavLink>
-                            <NavLink to="/teacher/grades" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-                                <GraduationCap size={20} /> <span className="nav-text">Grades</span>
-                            </NavLink>
-                            <NavLink to="/teacher/current-exams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-                                <ClipboardList size={20} /> <span className="nav-text">Current Exams</span>
-                            </NavLink>
+                            {!isAssistant && (
+                                <>
+                                    <NavLink to="/teacher/parents" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                                        <PieChart size={20} /> <span className="nav-text">Parents</span>
+                                    </NavLink>
+                                    <NavLink to="/teacher/grades" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                                        <GraduationCap size={20} /> <span className="nav-text">Grades</span>
+                                    </NavLink>
+                                    <NavLink to="/teacher/current-exams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                                        <ClipboardList size={20} /> <span className="nav-text">Current Exams</span>
+                                    </NavLink>
+                                    {user.role === 'teacher' && (
+                                        <NavLink to="/teacher/assistants" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                                            <Users size={20} /> <span className="nav-text">Assistants</span>
+                                        </NavLink>
+                                    )}
+                                </>
+                            )}
                         </>
                     )}
 
@@ -130,9 +142,11 @@ const Layout = ({ children }) => {
                             <Settings size={20} /> <span className="nav-text">Platform Settings</span>
                         </NavLink>
                     ) : (
-                        <NavLink to="/profile" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-                            <Settings size={20} /> <span className="nav-text">Profile</span>
-                        </NavLink>
+                        !isAssistant && (
+                            <NavLink to="/profile" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                                <Settings size={20} /> <span className="nav-text">Profile</span>
+                            </NavLink>
+                        )
                     )}
                 </nav>
 
@@ -167,7 +181,7 @@ const Layout = ({ children }) => {
                     </div>
 
                     <div className="flex items-center gap-3 lg:gap-6">
-                        {!isAdmin && (
+                        {!isAdmin && !isAssistant && (
                             <button className="hidden sm:flex btn-primary !px-4 lg:!px-5" onClick={() => navigate('/teacher/courses')}>
                                 <Plus size={20} /> <span className="hidden lg:inline">Add Course</span>
                             </button>
