@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import {
@@ -283,11 +283,14 @@ const CourseCurriculum = () => {
         }
     };
 
-    const handleViewStudentResult = async (studentId) => {
+    const handleViewStudentResult = async (studentId, submissionId) => {
         setLoadingResult(true);
         setResultModalOpen(true);
         try {
-            const res = await api.get(`/student/exam/${selectedQuiz.id}/result?studentId=${studentId}`);
+            const url = submissionId
+                ? `/student/exam/${selectedQuiz.id}/result?studentId=${studentId}&submissionId=${submissionId}`
+                : `/student/exam/${selectedQuiz.id}/result?studentId=${studentId}`;
+            const res = await api.get(url);
             setSelectedStudentResult(res.data.data);
         } catch (err) {
             console.error('Error fetching result:', err);
@@ -993,8 +996,8 @@ const CourseCurriculum = () => {
                                 <div className="space-y-4">
                                     {quizSubmissions.map(sub => (
                                         <div 
-                                            key={sub.student_id} 
-                                            onClick={() => handleViewStudentResult(sub.student_id)}
+                                            key={sub.id || sub.student_id} 
+                                            onClick={() => handleViewStudentResult(sub.student_id, sub.id)}
                                             className="flex items-center justify-between p-4 rounded-2xl border border-[#F1F5F9] bg-[#F8FAFC]/30 hover:bg-white hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer group/item"
                                         >
                                             <div className="flex items-center gap-4">
