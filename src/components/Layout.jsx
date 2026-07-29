@@ -101,6 +101,9 @@ const Layout = ({ children }) => {
                             <NavLink to="/admin/teachers" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
                                 <Users size={20} /> <span className="nav-text">Teachers</span>
                             </NavLink>
+                            <NavLink to="/admin/students" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                                <Users size={20} /> <span className="nav-text">Students</span>
+                            </NavLink>
                             <NavLink to="/admin/subjects" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
                                 <BookOpen size={20} /> <span className="nav-text">Subjects</span>
                             </NavLink>
