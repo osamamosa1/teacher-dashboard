@@ -910,10 +910,10 @@ const ManageStudents = () => {
                                 <div>
                                     <p className="text-sm font-bold text-[#0F172A] flex items-center gap-2">
                                         {newStudent.allow_any_device ? <Globe size={16} className="text-indigo-600" /> : <Smartphone size={16} className="text-[#94A3B8]" />}
-                                        طالب عام (يفتح من أي جهاز)
+                                        يفتح من أي جهاز
                                     </p>
                                     <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
-                                        لو مفعّل، الطالب هيقدر يسجل دخول من أي جهاز بدون قفل جهاز واحد. لو غير مفعّل، الحساب هيفتح من الجهاز الأول اللي يسجل دخول منه بس (السلوك الافتراضي).
+                                        لو مفعّل، الطالب يسجل دخول من أي جهاز بدون قفل جهاز واحد. هذا لا يغيّر الكورسات: طالب المدرس يرى كورسات المدرس فقط، وطالب الأدمن يرى كورسات كل المدرسين.
                                     </p>
                                 </div>
                             </label>
