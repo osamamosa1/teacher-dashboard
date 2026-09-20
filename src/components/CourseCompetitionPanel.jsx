@@ -77,10 +77,11 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
         await loadStudents();
 
         try {
-            const [compResult, examResult, lessonsResult] = await Promise.allSettled([
+            const [compResult, examResult, lessonsResult, unitsResult] = await Promise.allSettled([
                 api.get(`/teacher/courses/${courseId}/competitions`),
                 api.get(`/teacher/courses/${courseId}/competitions/available-exams`),
                 api.get(`/teacher/courses/${courseId}/lessons`),
+                api.get(`/teacher/courses/${courseId}/units`),
             ]);
 
             if (compResult.status === 'fulfilled') {
@@ -97,17 +98,48 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
             const lessonsData = lessonsResult.status === 'fulfilled'
                 ? (lessonsResult.value.data?.data || [])
                 : [];
+            const unitsData = unitsResult.status === 'fulfilled'
+                ? (unitsResult.value.data?.data || [])
+                : [];
+            const unitsById = Object.fromEntries(
+                (unitsData || []).map(u => [u.id, { title: u.title, sort_order: u.sort_order ?? 9999 }])
+            );
+            const lessonById = Object.fromEntries((lessonsData || []).map(l => [l.id, l]));
 
             if (!exams.course_exams?.length && lessonsData.length) {
                 const fromLessons = lessonsData
                     .filter(l => (l.type || '').toLowerCase() === 'exam')
-                    .map(l => ({
-                        id: l.id,
-                        title: l.exam?.title || l.title,
-                        source: 'lesson',
-                        questions_count: l.exam?.questions?.length ?? 0,
-                    }));
+                    .map(l => {
+                        const unitId = l.unit_id ?? 0;
+                        const unit = unitsById[unitId];
+                        return {
+                            id: l.id,
+                            title: l.exam?.title || l.title,
+                            source: 'lesson',
+                            questions_count: l.exam?.questions?.length ?? 0,
+                            unit_id: unitId,
+                            unit_title: unit?.title || (unitId > 0 ? `وحدة #${unitId}` : 'بدون وحدة'),
+                            unit_sort_order: unit?.sort_order ?? 9999,
+                        };
+                    });
                 if (fromLessons.length) exams = { ...exams, course_exams: fromLessons };
+            } else if (exams.course_exams?.length) {
+                // Enrich older API responses that lack unit fields.
+                exams = {
+                    ...exams,
+                    course_exams: exams.course_exams.map(ex => {
+                        if (ex.unit_id != null && ex.unit_title) return ex;
+                        const lesson = lessonById[ex.id];
+                        const unitId = ex.unit_id ?? lesson?.unit_id ?? 0;
+                        const unit = unitsById[unitId];
+                        return {
+                            ...ex,
+                            unit_id: unitId,
+                            unit_title: ex.unit_title || unit?.title || (unitId > 0 ? `وحدة #${unitId}` : 'بدون وحدة'),
+                            unit_sort_order: ex.unit_sort_order ?? unit?.sort_order ?? 9999,
+                        };
+                    }),
+                };
             }
             setAvailableExams(exams);
         } catch (e) {
@@ -156,6 +188,49 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
     const allFilteredSelected = filteredStudents.length > 0 && filteredSelectedCount === filteredStudents.length;
 
     const enrolledCount = students.length;
+
+    const courseExamsByUnit = useMemo(() => {
+        const map = new Map();
+        for (const ex of (availableExams.course_exams || [])) {
+            const unitId = ex.unit_id ?? 0;
+            if (!map.has(unitId)) {
+                map.set(unitId, {
+                    unit_id: unitId,
+                    unit_title: ex.unit_title || (unitId > 0 ? `وحدة #${unitId}` : 'بدون وحدة'),
+                    unit_sort_order: ex.unit_sort_order ?? 9999,
+                    exams: [],
+                });
+            }
+            map.get(unitId).exams.push(ex);
+        }
+        return [...map.values()].sort((a, b) =>
+            (a.unit_sort_order - b.unit_sort_order) ||
+            String(a.unit_title).localeCompare(String(b.unit_title), 'ar')
+        );
+    }, [availableExams.course_exams]);
+
+    const toggleAllUnitExams = (examIds, select) => {
+        setCopyExamForm(f => {
+            if (select) {
+                const merged = new Set([...f.lesson, ...examIds]);
+                return { ...f, lesson: [...merged] };
+            }
+            const remove = new Set(examIds);
+            return { ...f, lesson: f.lesson.filter(id => !remove.has(id)) };
+        });
+    };
+
+    const toggleAllStandaloneExams = (select) => {
+        const ids = (availableExams.standalone_exams || []).map(ex => ex.id);
+        setCopyExamForm(f => {
+            if (select) {
+                const merged = new Set([...f.standalone, ...ids]);
+                return { ...f, standalone: [...merged] };
+            }
+            const remove = new Set(ids);
+            return { ...f, standalone: f.standalone.filter(id => !remove.has(id)) };
+        });
+    };
 
     const toggleLessonExam = (id) => {
         setForm(f => ({
@@ -887,45 +962,89 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
                         </div>
                         <div className="p-4 border-b bg-slate-50 space-y-3">
                             <p className="text-xs font-bold text-slate-600">نسخ من امتحان لهذه الجولة فقط:</p>
-                            <div className="max-h-48 overflow-y-auto space-y-3 pr-1">
-                                {(availableExams.course_exams || []).length > 0 && (
-                                    <div>
-                                        <p className="text-[11px] font-bold text-slate-500 mb-2">امتحانات المنهج</p>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {(availableExams.course_exams || []).map(ex => (
-                                                <label
-                                                    key={`lesson-${ex.id}`}
-                                                    className="flex flex-col items-start gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/40"
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                                        checked={copyExamForm.lesson.includes(ex.id)}
-                                                        onChange={() => setCopyExamForm(f => ({
-                                                            ...f,
-                                                            lesson: f.lesson.includes(ex.id)
-                                                                ? f.lesson.filter(x => x !== ex.id)
-                                                                : [...f.lesson, ex.id],
-                                                        }))}
-                                                    />
-                                                    <span className="font-medium text-slate-700 leading-snug line-clamp-2">{ex.title}</span>
-                                                </label>
-                                            ))}
-                                        </div>
+                            <div className="max-h-64 overflow-y-auto space-y-4 pr-1" dir="rtl">
+                                {courseExamsByUnit.length > 0 && (
+                                    <div className="space-y-3">
+                                        <p className="text-[11px] font-bold text-slate-500">امتحانات المنهج (حسب الوحدة)</p>
+                                        {courseExamsByUnit.map(group => {
+                                            const ids = group.exams.map(ex => ex.id);
+                                            const selectedCount = ids.filter(id => copyExamForm.lesson.includes(id)).length;
+                                            const allSelected = ids.length > 0 && selectedCount === ids.length;
+                                            return (
+                                                <div key={`unit-${group.unit_id}`} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                                                    <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-slate-100/80 border-b border-slate-200">
+                                                        <p className="text-sm font-extrabold text-slate-800 truncate">
+                                                            {group.unit_title}
+                                                            <span className="text-[11px] font-bold text-slate-400 mr-2">({group.exams.length})</span>
+                                                        </p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleAllUnitExams(ids, !allSelected)}
+                                                            className="shrink-0 text-[11px] font-black text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded-lg hover:bg-indigo-50"
+                                                        >
+                                                            {allSelected ? 'إلغاء الكل' : 'تحديد الكل'}
+                                                        </button>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5">
+                                                        {group.exams.map(ex => (
+                                                            <label
+                                                                key={`lesson-${ex.id}`}
+                                                                className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 py-2 text-xs cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/40"
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                                    checked={copyExamForm.lesson.includes(ex.id)}
+                                                                    onChange={() => setCopyExamForm(f => ({
+                                                                        ...f,
+                                                                        lesson: f.lesson.includes(ex.id)
+                                                                            ? f.lesson.filter(x => x !== ex.id)
+                                                                            : [...f.lesson, ex.id],
+                                                                    }))}
+                                                                />
+                                                                <span className="font-medium text-slate-700 leading-snug">
+                                                                    {ex.title}
+                                                                    {ex.questions_count != null && (
+                                                                        <span className="block text-[10px] text-slate-400 font-bold mt-0.5">
+                                                                            {ex.questions_count} سؤال
+                                                                        </span>
+                                                                    )}
+                                                                </span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                                 {(availableExams.standalone_exams || []).length > 0 && (
-                                    <div>
-                                        <p className="text-[11px] font-bold text-slate-500 mb-2">امتحانات مستقلة</p>
-                                        <div className="grid grid-cols-2 gap-2">
+                                    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                                        <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-slate-100/80 border-b border-slate-200">
+                                            <p className="text-sm font-extrabold text-slate-800">امتحانات مستقلة</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const ids = (availableExams.standalone_exams || []).map(ex => ex.id);
+                                                    const allSelected = ids.length > 0 && ids.every(id => copyExamForm.standalone.includes(id));
+                                                    toggleAllStandaloneExams(!allSelected);
+                                                }}
+                                                className="shrink-0 text-[11px] font-black text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded-lg hover:bg-indigo-50"
+                                            >
+                                                {(availableExams.standalone_exams || []).every(ex => copyExamForm.standalone.includes(ex.id))
+                                                    ? 'إلغاء الكل'
+                                                    : 'تحديد الكل'}
+                                            </button>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5">
                                             {(availableExams.standalone_exams || []).map(ex => (
                                                 <label
                                                     key={`standalone-${ex.id}`}
-                                                    className="flex flex-col items-start gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/40"
+                                                    className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 py-2 text-xs cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/40"
                                                 >
                                                     <input
                                                         type="checkbox"
-                                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                        className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                                         checked={copyExamForm.standalone.includes(ex.id)}
                                                         onChange={() => setCopyExamForm(f => ({
                                                             ...f,
@@ -934,13 +1053,13 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
                                                                 : [...f.standalone, ex.id],
                                                         }))}
                                                     />
-                                                    <span className="font-medium text-slate-700 leading-snug line-clamp-2">{ex.title}</span>
+                                                    <span className="font-medium text-slate-700 leading-snug">{ex.title}</span>
                                                 </label>
                                             ))}
                                         </div>
                                     </div>
                                 )}
-                                {(availableExams.course_exams || []).length === 0 && (availableExams.standalone_exams || []).length === 0 && (
+                                {courseExamsByUnit.length === 0 && (availableExams.standalone_exams || []).length === 0 && (
                                     <p className="text-xs text-slate-400 py-2">لا توجد امتحانات متاحة للنسخ</p>
                                 )}
                             </div>
