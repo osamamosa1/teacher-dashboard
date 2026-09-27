@@ -362,21 +362,26 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
     };
 
     const startNextRound = async (comp) => {
-        const finalRound = isCupFinal(comp);
-        if (!finalRound && comp.round_limits && !comp.round_limits.can_add_round && !comp.rounds?.some(r => r.status === 'draft')) {
+        const finishCup = canFinishCup(comp);
+        const atUnplayedFinal = isCupFinalBracket(comp) && !finishCup;
+        if (!finishCup && comp.round_limits && !comp.round_limits.can_add_round && !comp.rounds?.some(r => r.status === 'draft')) {
             alert(`لا يمكن إضافة جولة — الحد الأقصى ${comp.round_limits.max_rounds} جولة`);
             return;
         }
-        const confirmMsg = finalRound
-            ? 'إنهاء البطولة؟ سيتم إغلاق الجولة الحالية (من لم يسلّم = 0) وإنهاء مباراة النهائي وتحديد البطل.'
-            : 'إغلاق الجولة الحالية؟ من لم يسلّم = 0. ثم إنشاء جولة جديدة.';
+        const confirmMsg = finishCup
+            ? 'إنهاء البطولة؟ سيتم اعتماد نتيجة النهائي وإعلان البطل.'
+            : atUnplayedFinal
+                ? 'إنشاء جولة النهائي؟ الاتنين المتأهلين هيلعبوا جولة أسئلة تحدد المركز الأول والثاني.'
+                : 'إغلاق الجولة الحالية؟ من لم يسلّم = 0. ثم إنشاء جولة جديدة.';
         if (!window.confirm(confirmMsg)) return;
         try {
             await api.post(`/teacher/courses/${courseId}/competitions/${comp.id}/rounds/next`);
             await loadAll();
-            alert(finalRound
+            alert(finishCup
                 ? 'تم إنهاء البطولة وتحديد النتائج.'
-                : 'تم إغلاق الجولة وإنشاء جولة جديدة (مسودة). أضف أسئلتها ثم فعّلها.');
+                : atUnplayedFinal
+                    ? 'تم إنشاء جولة النهائي (مسودة). أضف أسئلتها ثم فعّلها عشان المتأهلين يلعبوا.'
+                    : 'تم إغلاق الجولة وإنشاء جولة جديدة (مسودة). أضف أسئلتها ثم فعّلها.');
         } catch (e) {
             const data = e.response?.data;
             if (data?.code === 'tie_break_required' && data?.ties?.length) {
@@ -552,7 +557,12 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
         return `${m}:${String(s).padStart(2, '0')}`;
     };
 
-    const isCupFinal = (comp) => comp?.type === 'cup' && comp?.round_limits?.is_final_round === true;
+    const isCupFinalBracket = (comp) => comp?.type === 'cup' && comp?.round_limits?.is_final_round === true;
+    const canFinishCup = (comp) => comp?.type === 'cup' && (
+        comp?.round_limits?.ready_to_finish_cup === true ||
+        comp?.phase === 'finished'
+    );
+    const isCupFinal = (comp) => canFinishCup(comp);
 
     const phaseLabel = (phase) => ({
         groups: 'دور المجموعات',
@@ -608,7 +618,7 @@ const CourseCompetitionPanel = ({ courseId, students: studentsProp }) => {
                                         : 'bg-amber-500'
                             }`}
                         >
-                            {isCupFinal(comp) ? 'إنهاء البطولة' : 'الجولة التالية'}
+                            {isCupFinal(comp) ? 'إنهاء البطولة' : (isCupFinalBracket(comp) ? 'جولة النهائي' : 'الجولة التالية')}
                         </button>
                         {type === 'cup' && comp.phase === 'groups' && (
                             <button onClick={() => startKnockout(comp)} className="px-4 py-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-sm font-bold">
