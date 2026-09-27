@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import {
     Plus, Loader2, X, Search, SlidersHorizontal, BookOpen,
-    Users, Star, MoreVertical, Edit, Image as ImageIcon, Trash2, Award, Check
+    Users, Star, MoreVertical, Edit, Image as ImageIcon, Trash2, Award, Check, Lock, Unlock
 } from 'lucide-react';
 
 const ManageCourses = () => {
@@ -34,6 +34,8 @@ const ManageCourses = () => {
     const [loadingStudents, setLoadingStudents] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editingCourseId, setEditingCourseId] = useState(null);
+    const [videoLockByCourse, setVideoLockByCourse] = useState({});
+    const [togglingLockId, setTogglingLockId] = useState(null);
 
     useEffect(() => {
         fetchInitialData();
@@ -41,13 +43,19 @@ const ManageCourses = () => {
 
     const fetchInitialData = async () => {
         try {
-            const [cRes, sRes, gRes] = await Promise.allSettled([
+            const [cRes, sRes, gRes, lRes] = await Promise.allSettled([
                 api.get('/teacher/courses'),
                 api.get('/teacher/subjects'),
-                api.get('/teacher/grades')
+                api.get('/teacher/grades'),
+                api.get('/teacher/course-settings')
             ]);
             console.log('Fetched data for ManageCourses:', { courses: cRes, subjects: sRes, grades: gRes });
             if (cRes.status === 'fulfilled') setCourses(cRes.value.data.data || []);
+            if (lRes.status === 'fulfilled') {
+                const map = {};
+                (lRes.value.data.data || []).forEach(s => { map[s.course_id] = s.video_exam_lock_enabled; });
+                setVideoLockByCourse(map);
+            }
             if (sRes.status === 'fulfilled') setSubjects(sRes.value.data.data || []);
             if (gRes.status === 'fulfilled') setGrades(gRes.value.data.data || []);
             else console.error('Failed to fetch grades:', gRes.reason);
@@ -145,6 +153,26 @@ const ManageCourses = () => {
             alert('Failed to upload image. Please try again or use a URL.');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const isVideoLockEnabled = (courseId) => videoLockByCourse[courseId] !== false;
+
+    const handleToggleVideoLock = async (course, e) => {
+        e.stopPropagation();
+        const next = !isVideoLockEnabled(course.id);
+        const msg = next
+            ? 'تفعيل قفل الفيديو: الطالب لازم ينجح في الامتحان اللي قبل الفيديو علشان يفتحه. متأكد؟'
+            : 'إيقاف قفل الفيديو: كل الفيديوهات في الكورس ده هتتفتح من غير شرط النجاح في الامتحان. متأكد؟';
+        if (!window.confirm(msg)) return;
+        setTogglingLockId(course.id);
+        try {
+            const res = await api.put(`/teacher/courses/${course.id}/video-exam-lock`, { enabled: next });
+            setVideoLockByCourse(prev => ({ ...prev, [course.id]: res.data?.video_exam_lock_enabled ?? next }));
+        } catch (err) {
+            alert(err.response?.data?.message || 'فشل تحديث إعداد قفل الفيديو');
+        } finally {
+            setTogglingLockId(null);
         }
     };
 
@@ -292,6 +320,28 @@ const ManageCourses = () => {
                                         {course.description || 'Elevate student potential with this comprehensive academic curriculum and practical lessons.'}
                                     </p>
                                 </div>
+
+                                <button
+                                    type="button"
+                                    onClick={(e) => handleToggleVideoLock(course, e)}
+                                    disabled={togglingLockId === course.id}
+                                    title="فتح الفيديو بعد النجاح في الامتحان"
+                                    className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all disabled:opacity-60 ${
+                                        isVideoLockEnabled(course.id)
+                                            ? 'bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                                            : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
+                                    }`}
+                                >
+                                    <span className="flex items-center gap-2" dir="rtl">
+                                        {togglingLockId === course.id
+                                            ? <Loader2 size={14} className="animate-spin" />
+                                            : isVideoLockEnabled(course.id) ? <Lock size={14} /> : <Unlock size={14} />}
+                                        فتح الفيديو بعد النجاح في الامتحان
+                                    </span>
+                                    <span className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors ${isVideoLockEnabled(course.id) ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                                        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${isVideoLockEnabled(course.id) ? 'left-[18px]' : 'left-0.5'}`} />
+                                    </span>
+                                </button>
 
                                 <div className="mt-auto pt-6 flex items-center justify-between">
                                     <div className="flex items-center gap-5">

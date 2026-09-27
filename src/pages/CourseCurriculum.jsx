@@ -68,10 +68,35 @@ const CourseCurriculum = () => {
     const [bulkEnrolling, setBulkEnrolling] = useState(false);
     const [videoInsightsLesson, setVideoInsightsLesson] = useState(null);
     const [resettingPoints, setResettingPoints] = useState(false);
+    const [pointsOverrideIds, setPointsOverrideIds] = useState([]);
+    const [togglingPointsId, setTogglingPointsId] = useState(null);
 
     useEffect(() => {
         fetchCurriculum();
+        fetchPointsOverrides();
     }, [courseId]);
+
+    const fetchPointsOverrides = async () => {
+        try {
+            const res = await api.get(`/teacher/courses/${courseId}/video-points-overrides`);
+            setPointsOverrideIds(res.data?.data?.lesson_ids || []);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleTogglePointsOverride = async (lesson) => {
+        const next = !pointsOverrideIds.includes(lesson.id);
+        setTogglingPointsId(lesson.id);
+        try {
+            await api.put(`/teacher/lessons/${lesson.id}/video-points-override`, { enabled: next });
+            setPointsOverrideIds(prev => next ? [...prev, lesson.id] : prev.filter(id => id !== lesson.id));
+        } catch (err) {
+            alert(err.response?.data?.message || 'فشل تحديث احتساب النقاط');
+        } finally {
+            setTogglingPointsId(null);
+        }
+    };
 
     useEffect(() => {
         if (activeTab === 'students') {
@@ -572,8 +597,30 @@ const CourseCurriculum = () => {
                                         <div className="col-span-2">
                                             {getTypeBadge(lesson.type)}
                                         </div>
-                                        <div className="col-span-3 flex items-center gap-2 text-sm text-[#0F172A] font-semibold">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Published
+                                        <div className="col-span-3 flex items-center gap-3 flex-wrap text-sm text-[#0F172A] font-semibold">
+                                            <span className="flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Published
+                                            </span>
+                                            {lesson.type === 'video' && (() => {
+                                                const on = pointsOverrideIds.includes(lesson.id);
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleTogglePointsOverride(lesson)}
+                                                        disabled={togglingPointsId === lesson.id}
+                                                        title="عند التفعيل يحصل الطالب على نقاط الفيديو في أي وقت بدون شرط الـ 24 ساعة"
+                                                        className={`flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] font-bold transition-all disabled:opacity-60 ${
+                                                            on ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9]'
+                                                        }`}
+                                                    >
+                                                        {togglingPointsId === lesson.id && <Loader2 size={12} className="animate-spin" />}
+                                                        <span dir="rtl">احتساب النقاط</span>
+                                                        <span className={`relative inline-flex h-4 w-7 flex-shrink-0 rounded-full transition-colors ${on ? 'bg-amber-500' : 'bg-slate-300'}`}>
+                                                            <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all ${on ? 'left-[14px]' : 'left-0.5'}`} />
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })()}
                                         </div>
                                         <div className="col-span-1 text-right flex justify-end gap-2">
                                             <button
