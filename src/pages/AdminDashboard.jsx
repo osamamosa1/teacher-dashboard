@@ -24,7 +24,7 @@ const AdminDashboard = () => {
     const stats = [
         { label: 'Active Teachers', value: statsData?.active_teachers ?? '0', icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
         { label: 'Total Courses', value: statsData?.total_courses ?? '0', icon: Layers, color: 'text-violet-600', bg: 'bg-violet-50' },
-        { label: 'Total Lessons', value: statsData?.total_content ?? '0', icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
+        { label: 'Total Lectures', value: statsData?.total_content ?? '0', icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
         { label: 'Enrolled Students', value: statsData?.enrolled_students ?? '0', icon: GraduationCap, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     ];
 
@@ -44,11 +44,8 @@ const AdminDashboard = () => {
                     <p className="text-[#64748B] text-lg font-medium mt-1">Welcome back, Administrator. Here's what's happening today.</p>
                 </div>
                 <div className="flex flex-wrap gap-4 w-full md:w-auto">
-                    <Link to="/admin/subjects" className="flex-1 sm:flex-none bg-white border border-[#E2E8F0] text-[#0F172A] hover:bg-[#F8FAFC] px-6 py-3 rounded-xl font-bold tracking-tight shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95 text-center">
-                        <BookOpen size={18} className="text-[#64748B]" /> Manage Subjects
-                    </Link>
                     <Link to="/admin/grades" className="flex-1 sm:flex-none bg-white border border-[#E2E8F0] text-[#0F172A] hover:bg-[#F8FAFC] px-6 py-3 rounded-xl font-bold tracking-tight shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95 text-center">
-                        <GraduationCap size={18} className="text-[#64748B]" /> Manage Grades
+                        <GraduationCap size={18} className="text-[#64748B]" /> Manage Levels
                     </Link>
                     <Link to="/admin/settings" className="flex-1 sm:flex-none bg-white border border-[#E2E8F0] text-[#0F172A] hover:bg-[#F8FAFC] px-6 py-3 rounded-xl font-bold tracking-tight shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95 text-center">
                         <Settings size={18} className="text-[#64748B]" /> Platform Settings

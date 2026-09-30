@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
-import { GraduationCap, Plus, Trash2, X, Loader2, Award } from 'lucide-react';
+import { GraduationCap, Plus, Trash2, X, Loader2, Award, Pencil } from 'lucide-react';
 
 const ManageGrades = () => {
     const [grades, setGrades] = useState([]);
@@ -44,19 +44,19 @@ const ManageGrades = () => {
             setNewGrade({ name: '' });
             setEditingGrade(null);
         } catch (err) {
-            alert('Failed to save grade.');
+            alert(err.response?.data?.message || 'Failed to save level.');
         } finally {
             setSaving(false);
         }
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this grade?')) return;
+        if (!window.confirm('Are you sure you want to delete this level?')) return;
         try {
             await api.delete(`/teacher/grades/${id}`);
             fetchGrades();
         } catch (err) {
-            alert('Failed to delete grade.');
+            alert(err.response?.data?.message || 'Failed to delete level.');
         }
     };
 
@@ -64,14 +64,14 @@ const ManageGrades = () => {
         <div className="p-8 space-y-8 min-h-screen bg-[#F8FAFC]">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-[#0F172A]">Grade Management</h1>
-                    <p className="text-[#64748B] mt-1">Manage academic levels for your courses.</p>
+                    <h1 className="text-3xl font-extrabold text-[#0F172A]">Levels</h1>
+                    <p className="text-[#64748B] mt-1">Manage the levels that group your courses.</p>
                 </div>
                 <button 
                     onClick={() => { setEditingGrade(null); setNewGrade({name: ''}); setModalOpen(true); }}
                     className="bg-indigo-900 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2"
                 >
-                    <Plus size={20} /> Add Grade
+                    <Plus size={20} /> Add Level
                 </button>
             </div>
 
@@ -79,15 +79,15 @@ const ManageGrades = () => {
                 {loading ? (
                     <div className="py-32 flex flex-col items-center gap-4">
                         <Loader2 className="animate-spin text-indigo-600" size={40} />
-                        <p className="text-[#64748B] font-medium">Loading academic levels...</p>
+                        <p className="text-[#64748B] font-medium">Loading levels...</p>
                     </div>
                 ) : grades.length === 0 ? (
                     <div className="py-32 flex flex-col items-center gap-4 text-center">
                         <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-2">
                             <GraduationCap className="text-indigo-600" size={40} />
                         </div>
-                        <h3 className="text-xl font-bold text-[#0F172A]">No Grades Found</h3>
-                        <p className="text-[#64748B]">Create your first academic grade to get started.</p>
+                        <h3 className="text-xl font-bold text-[#0F172A]">No Levels Found</h3>
+                        <p className="text-[#64748B]">Create your first level to get started.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-8">
@@ -102,18 +102,18 @@ const ManageGrades = () => {
                                         <p className="text-xs text-[#94A3B8] font-medium uppercase tracking-wider">Level ID: {g.id}</p>
                                     </div>
                                 </div>
-                                <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="mt-4 pt-4 border-t border-[#E2E8F0] flex gap-2">
                                     <button 
-                                        onClick={() => { setEditingGrade(g); setModalOpen(true); }}
-                                        className="p-2 text-[#64748B] hover:text-indigo-600 hover:bg-white rounded-lg shadow-sm"
+                                        onClick={() => { setEditingGrade({ ...g }); setModalOpen(true); }}
+                                        className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-bold text-indigo-700 bg-white border border-indigo-100 hover:bg-indigo-50 rounded-lg transition-colors"
                                     >
-                                        <Award size={16} />
+                                        <Pencil size={16} /> Edit
                                     </button>
                                     <button 
                                         onClick={() => handleDelete(g.id)}
-                                        className="p-2 text-[#64748B] hover:text-red-600 hover:bg-white rounded-lg shadow-sm"
+                                        className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-bold text-red-600 bg-white border border-red-100 hover:bg-red-50 rounded-lg transition-colors"
                                     >
-                                        <Trash2 size={16} />
+                                        <Trash2 size={16} /> Delete
                                     </button>
                                 </div>
                             </div>
@@ -126,17 +126,17 @@ const ManageGrades = () => {
                 <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center p-4 z-[500]">
                     <div className="bg-white rounded-[32px] w-full max-w-md p-8 shadow-2xl">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-[#0F172A]">{editingGrade ? 'Edit Grade' : 'Add New Grade'}</h2>
+                            <h2 className="text-2xl font-bold text-[#0F172A]">{editingGrade ? 'Edit Level' : 'Add New Level'}</h2>
                             <button onClick={() => setModalOpen(false)} className="p-2 bg-[#F1F5F9] rounded-full text-[#64748B]">
                                 <X size={20} />
                             </button>
                         </div>
                         <form onSubmit={handleSave} className="space-y-6">
                             <div>
-                                <label className="text-sm font-bold text-[#0F172A] mb-2 block">Grade Name</label>
+                                <label className="text-sm font-bold text-[#0F172A] mb-2 block">Level Name</label>
                                 <input 
                                     className="w-full h-12 px-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-semibold text-[#0F172A] transition-all"
-                                    placeholder="e.g. Grade 10"
+                                    placeholder="e.g. Level 1"
                                     value={editingGrade ? editingGrade.name : newGrade.name}
                                     onChange={e => editingGrade ? setEditingGrade({...editingGrade, name: e.target.value}) : setNewGrade({name: e.target.value})}
                                     required

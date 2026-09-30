@@ -128,7 +128,7 @@ const VideoLessonInsightsModal = ({ lesson, onClose }) => {
       <div className="bg-white w-full max-w-3xl rounded-[28px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         <div className="p-6 border-b border-[#F1F5F9] flex justify-between items-start shrink-0">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-1">Video Lesson</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-1">Video Lecture</p>
             <h2 className="text-xl font-extrabold text-[#0F172A]">{lesson.title}</h2>
             {data && (
               <p className="text-sm text-[#64748B] mt-1">

@@ -9,7 +9,6 @@ import {
 const ManageCourses = () => {
     const navigate = useNavigate();
     const [courses, setCourses] = useState([]);
-    const [subjects, setSubjects] = useState([]);
     const [grades, setGrades] = useState([]);
     const [loading, setLoading] = useState(true);
     const [courseModalOpen, setCourseModalOpen] = useState(false);
@@ -43,20 +42,17 @@ const ManageCourses = () => {
 
     const fetchInitialData = async () => {
         try {
-            const [cRes, sRes, gRes, lRes] = await Promise.allSettled([
+            const [cRes, gRes, lRes] = await Promise.allSettled([
                 api.get('/teacher/courses'),
-                api.get('/teacher/subjects'),
                 api.get('/teacher/grades'),
                 api.get('/teacher/course-settings')
             ]);
-            console.log('Fetched data for ManageCourses:', { courses: cRes, subjects: sRes, grades: gRes });
             if (cRes.status === 'fulfilled') setCourses(cRes.value.data.data || []);
             if (lRes.status === 'fulfilled') {
                 const map = {};
                 (lRes.value.data.data || []).forEach(s => { map[s.course_id] = s.video_exam_lock_enabled; });
                 setVideoLockByCourse(map);
             }
-            if (sRes.status === 'fulfilled') setSubjects(sRes.value.data.data || []);
             if (gRes.status === 'fulfilled') setGrades(gRes.value.data.data || []);
             else console.error('Failed to fetch grades:', gRes.reason);
         } catch (err) {
@@ -162,15 +158,15 @@ const ManageCourses = () => {
         e.stopPropagation();
         const next = !isVideoLockEnabled(course.id);
         const msg = next
-            ? 'تفعيل قفل الفيديو: الطالب لازم ينجح في الامتحان اللي قبل الفيديو علشان يفتحه. متأكد؟'
-            : 'إيقاف قفل الفيديو: كل الفيديوهات في الكورس ده هتتفتح من غير شرط النجاح في الامتحان. متأكد؟';
+            ? 'Enable video lock: students must pass the exam before a video to unlock it. Are you sure?'
+            : 'Disable video lock: all videos in this course will open without passing the exam. Are you sure?';
         if (!window.confirm(msg)) return;
         setTogglingLockId(course.id);
         try {
             const res = await api.put(`/teacher/courses/${course.id}/video-exam-lock`, { enabled: next });
             setVideoLockByCourse(prev => ({ ...prev, [course.id]: res.data?.video_exam_lock_enabled ?? next }));
         } catch (err) {
-            alert(err.response?.data?.message || 'فشل تحديث إعداد قفل الفيديو');
+            alert(err.response?.data?.message || 'Failed to update video lock setting');
         } finally {
             setTogglingLockId(null);
         }
@@ -181,9 +177,9 @@ const ManageCourses = () => {
         navigate(`/teacher/students?courseId=${course.id}`);
     };
 
-    const getSubjectName = (id) => {
-        const sub = subjects.find(s => s.id === id);
-        return sub ? sub.name : 'General';
+    const getLevelName = (id) => {
+        const level = grades.find(g => g.id === id);
+        return level ? level.name : 'Level';
     };
 
     const filteredCourses = courses.filter(c =>
@@ -196,21 +192,21 @@ const ManageCourses = () => {
             {/* Page Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-[32px] font-extrabold text-[#0F172A] tracking-tight">My Courses</h1>
-                    <p className="text-[#64748B] text-lg font-medium mt-1">Manage your curriculum and monitor student progress.</p>
+                    <h1 className="text-[32px] font-extrabold text-[#0F172A] tracking-tight">Courses</h1>
+                    <p className="text-[#64748B] text-lg font-medium mt-1">Manage your courses and their lectures.</p>
                 </div>
                 <div className="flex gap-4">
                     <Link
                         to="/teacher/grades"
                         className="bg-white border border-[#E2E8F0] text-[#0F172A] hover:bg-[#F8FAFC] px-6 py-3 rounded-xl font-bold tracking-tight shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
-                        <Award size={18} className="text-[#64748B]" /> Manage Grades
+                        <Award size={18} className="text-[#64748B]" /> Manage Levels
                     </Link>
                     <button
                         onClick={() => setCourseModalOpen(true)}
                         className="bg-indigo-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl font-bold tracking-tight shadow-lg shadow-indigo-900/10 flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
-                        <Plus size={20} /> Create New Course
+                        <Plus size={20} /> Add Course
                     </button>
                 </div>
             </div>
@@ -246,12 +242,12 @@ const ManageCourses = () => {
                         <BookOpen className="text-indigo-600 w-10 h-10" />
                     </div>
                     <h3 className="text-2xl font-bold text-[#0F172A] mb-2">No Courses Found</h3>
-                    <p className="text-[#64748B] max-w-sm mb-8">You haven't created any courses yet or none match your search criteria.</p>
+                    <p className="text-[#64748B] max-w-sm mb-8">You haven't created any courses yet or none match your search.</p>
                     <button
                         onClick={() => setCourseModalOpen(true)}
                         className="bg-indigo-900 hover:bg-slate-800 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-900/10 flex items-center gap-2 transition-all"
                     >
-                        <Plus size={20} /> Create Your First Course
+                        <Plus size={20} /> Add Your First Course
                     </button>
                 </div>
             ) : (
@@ -278,7 +274,7 @@ const ManageCourses = () => {
                                 {/* Top Badges */}
                                 <div className="absolute top-4 left-4 flex flex-col gap-2">
                                     <span className="px-3.5 py-1.5 bg-white/90 backdrop-blur-md text-indigo-700 rounded-full text-[11px] font-black shadow-sm ring-1 ring-black/5">
-                                        {getSubjectName(course.subject_id)}
+                                        {getLevelName(course.grade_id)}
                                     </span>
                                     {course.is_popular && (
                                         <span className="px-3.5 py-1.5 bg-amber-400 text-white rounded-full text-[11px] font-black shadow-lg shadow-amber-200 flex items-center gap-1 animate-pulse">
@@ -317,7 +313,7 @@ const ManageCourses = () => {
                                         {course.title}
                                     </h3>
                                     <p className="text-slate-500 text-sm font-medium line-clamp-2 leading-relaxed">
-                                        {course.description || 'Elevate student potential with this comprehensive academic curriculum and practical lessons.'}
+                                        {course.description || 'Lectures and exams for this course.'}
                                     </p>
                                 </div>
 
@@ -325,18 +321,18 @@ const ManageCourses = () => {
                                     type="button"
                                     onClick={(e) => handleToggleVideoLock(course, e)}
                                     disabled={togglingLockId === course.id}
-                                    title="فتح الفيديو بعد النجاح في الامتحان"
+                                    title="Unlock video after passing the exam"
                                     className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all disabled:opacity-60 ${
                                         isVideoLockEnabled(course.id)
                                             ? 'bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100'
                                             : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
                                     }`}
                                 >
-                                    <span className="flex items-center gap-2" dir="rtl">
+                                    <span className="flex items-center gap-2">
                                         {togglingLockId === course.id
                                             ? <Loader2 size={14} className="animate-spin" />
                                             : isVideoLockEnabled(course.id) ? <Lock size={14} /> : <Unlock size={14} />}
-                                        فتح الفيديو بعد النجاح في الامتحان
+                                        Unlock video after passing exam
                                     </span>
                                     <span className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors ${isVideoLockEnabled(course.id) ? 'bg-emerald-500' : 'bg-slate-300'}`}>
                                         <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${isVideoLockEnabled(course.id) ? 'left-[18px]' : 'left-0.5'}`} />
@@ -354,7 +350,7 @@ const ManageCourses = () => {
                                         </div>
                                         <div className="w-[1px] h-8 bg-slate-200" />
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Lessons</span>
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Lectures</span>
                                             <div className="flex items-center gap-1.5 text-slate-900 font-bold">
                                                 <BookOpen size={16} className="text-emerald-500" />
                                                 <span>{course.lessons_count || 12}</span>
@@ -386,8 +382,8 @@ const ManageCourses = () => {
                         <div className="p-8 border-b border-[#F1F5F9] bg-[#F8FAFC]/50">
                             <div className="flex justify-between items-center">
                                 <div>
-                                    <h2 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">{isEditing ? 'Edit Course' : 'Create New Course'}</h2>
-                                    <p className="text-[#64748B] text-sm font-medium mt-1">{isEditing ? 'Update course metadata and parameters.' : 'Configure your course metadata and academic parameters.'}</p>
+                                    <h2 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">{isEditing ? 'Edit Course' : 'Add New Course'}</h2>
+                                    <p className="text-[#64748B] text-sm font-medium mt-1">{isEditing ? 'Update the course details.' : 'Configure the course details.'}</p>
                                 </div>
                                 <button onClick={() => { setCourseModalOpen(false); setIsEditing(false); setEditingCourseId(null); }} className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E2E8F0] shadow-sm text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors">
                                     <X size={20} />
@@ -446,34 +442,21 @@ const ManageCourses = () => {
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10 items-start">
                                      <div className="space-y-1">
-                                         <h4 className="text-sm font-bold text-[#0F172A]">Grade</h4>
-                                         <p className="text-xs text-[#64748B] leading-relaxed">Choose target student level.</p>
+                                         <h4 className="text-sm font-bold text-[#0F172A]">Level</h4>
+                                         <p className="text-xs text-[#64748B] leading-relaxed">Choose the level this course belongs to.</p>
                                      </div>
                                      <div className="md:col-span-2 flex gap-2">
                                          <select className="input-field cursor-pointer font-medium" value={newCourse.grade_id} onChange={e => setNewCourse({ ...newCourse, grade_id: e.target.value })} required>
-                                             <option value="" disabled>Select Grade</option>
+                                             <option value="" disabled>Select Level</option>
                                              {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                                          </select>
                                          <Link
                                              to="/teacher/grades"
                                              className="h-[52px] w-[52px] min-w-[52px] bg-[#F1F5F9] text-[#0F172A] hover:bg-[#E2E8F0] rounded-xl flex items-center justify-center transition-colors"
-                                             title="Manage Grades and Add New"
+                                             title="Manage Levels and Add New"
                                          >
                                              <Plus size={20} />
                                          </Link>
-                                     </div>
-                                 </div>
-
-                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10 items-start">
-                                     <div className="space-y-1">
-                                         <h4 className="text-sm font-bold text-[#0F172A]">Subject</h4>
-                                         <p className="text-xs text-[#64748B] leading-relaxed">Select course subject.</p>
-                                     </div>
-                                     <div className="md:col-span-2">
-                                         <select className="input-field cursor-pointer font-medium" value={newCourse.subject_id} onChange={e => setNewCourse({ ...newCourse, subject_id: e.target.value })} required>
-                                             <option value="" disabled>Select Subject</option>
-                                             {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                         </select>
                                      </div>
                                  </div>
 

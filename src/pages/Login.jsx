@@ -106,7 +106,7 @@ const Login = () => {
                         </div>
 
                         <h1 className="mt-4 text-3xl font-extrabold text-slate-900">
-                            {settings?.app_name || "Welcome Back"}
+                            YouTop
                         </h1>
 
                         <p className="text-sm text-slate-500 mt-1">

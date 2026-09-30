@@ -36,7 +36,7 @@ const TeacherDashboard = () => {
     const dashboardStats = [
         { label: 'Active Courses', value: getStat('ActiveCourses'), icon: BookOpen, color: 'text-indigo-600', bg: 'bg-indigo-50' },
         { label: 'Total Students', value: getStat('TotalStudents'), icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-        { label: 'Total Lessons', value: getStat('TotalLessons'), icon: Star, color: 'text-amber-600', bg: 'bg-amber-50' },
+        { label: 'Total Lectures', value: getStat('TotalLessons'), icon: Star, color: 'text-amber-600', bg: 'bg-amber-50' },
         { label: 'Total Revenue', value: `$${typeof getStat('TotalRevenue') === 'number' ? getStat('TotalRevenue').toFixed(2) : getStat('TotalRevenue')}`, icon: Award, color: 'text-purple-600', bg: 'bg-purple-50' },
     ];
 

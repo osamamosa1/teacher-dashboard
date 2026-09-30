@@ -332,19 +332,11 @@ const CurrentExams = () => {
                                             className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-200" />
                                     </div>
                                     <div>
-                                        <label className="text-xs font-bold text-[#64748B] mb-1 block">Grade</label>
+                                        <label className="text-xs font-bold text-[#64748B] mb-1 block">Level</label>
                                         <select value={form.gradeId} onChange={e => setForm(f => ({ ...f, gradeId: e.target.value }))}
                                             className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-200 bg-white">
-                                            <option value="">All grades</option>
+                                            <option value="">All levels</option>
                                             {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-[#64748B] mb-1 block">Subject</label>
-                                        <select value={form.subjectId} onChange={e => setForm(f => ({ ...f, subjectId: e.target.value }))}
-                                            className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-200 bg-white">
-                                            <option value="">All subjects</option>
-                                            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                         </select>
                                     </div>
                                 </div>

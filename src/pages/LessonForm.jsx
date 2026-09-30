@@ -26,27 +26,11 @@ const LessonForm = () => {
         assignment: { description: '', due_date: '', points: 100 },
         unit_id: ''
     });
-    const [units, setUnits] = useState([]);
-    const [unitsLoading, setUnitsLoading] = useState(false);
-
     useEffect(() => {
-        fetchUnits();
         if (isEdit) {
             fetchLesson();
         }
     }, [isEdit, lessonId, courseId]);
-
-    const fetchUnits = async () => {
-        setUnitsLoading(true);
-        try {
-            const res = await api.get(`/teacher/courses/${courseId}/units`);
-            setUnits(res.data.data || []);
-        } catch (err) {
-            console.error('Error fetching units', err);
-        } finally {
-            setUnitsLoading(false);
-        }
-    };
 
     const fetchLesson = async () => {
         try {
@@ -103,7 +87,7 @@ const LessonForm = () => {
             const payload = { 
                 ...newLesson, 
                 course_id: parseInt(courseId, 10),
-                unit_id: newLesson.unit_id ? parseInt(newLesson.unit_id) : null
+                unit_id: newLesson.unit_id ? parseInt(newLesson.unit_id, 10) : 0
             };
             if (isEdit) {
                 await api.put(`/teacher/lessons/${lessonId}`, payload);
@@ -113,7 +97,7 @@ const LessonForm = () => {
             navigate(`/teacher/courses/${courseId}`);
         } catch (err) {
             console.error('Save lesson error:', err);
-            let msg = 'Failed to save lesson.';
+            let msg = 'Failed to save lecture.';
             let details = '';
 
             if (err.response?.data) {
@@ -179,14 +163,14 @@ const LessonForm = () => {
                 <ChevronRight size={16} className="mx-2" />
                 <Link to={`/teacher/courses/${courseId}`} className="hover:text-[#0F172A] transition-colors">Curriculum</Link>
                 <ChevronRight size={16} className="mx-2" />
-                <span className="text-[#0F172A] font-bold">{isEdit ? 'Edit Lesson' : 'New Lesson'}</span>
+                <span className="text-[#0F172A] font-bold">{isEdit ? 'Edit Lecture' : 'New Lecture'}</span>
             </div>
 
             <div className="bg-white w-full rounded-[32px] shadow-sm border border-[#E2E8F0] overflow-hidden">
                 <div className="p-8 border-b border-[#F1F5F9] flex justify-between items-center bg-[#F8FAFC]/50">
                     <div>
-                        <h2 className="text-2xl font-black text-[#0F172A] tracking-tight">{isEdit ? 'Edit Lesson Module' : 'Create Lesson Module'}</h2>
-                        <p className="text-[#64748B] text-sm font-medium mt-1">Configure lesson content and properties below.</p>
+                        <h2 className="text-2xl font-black text-[#0F172A] tracking-tight">{isEdit ? 'Edit Lecture' : 'Add Lecture'}</h2>
+                        <p className="text-[#64748B] text-sm font-medium mt-1">Configure lecture content and properties below.</p>
                     </div>
                 </div>
 
@@ -197,7 +181,7 @@ const LessonForm = () => {
 
                         <div className="grid grid-cols-3 gap-10 items-start">
                             <div className="space-y-1">
-                                <h4 className="text-sm font-bold text-[#0F172A]">Lesson Title</h4>
+                                <h4 className="text-sm font-bold text-[#0F172A]">Lecture Title</h4>
                                 <p className="text-xs text-[#64748B] leading-relaxed">A clear and descriptive title.</p>
                             </div>
                             <div className="col-span-2">
@@ -208,7 +192,7 @@ const LessonForm = () => {
                         <div className="grid grid-cols-3 gap-10 items-start">
                             <div className="space-y-1">
                                 <h4 className="text-sm font-bold text-[#0F172A]">Content Type</h4>
-                                <p className="text-xs text-[#64748B] leading-relaxed">Select the primary format of this lesson.</p>
+                                <p className="text-xs text-[#64748B] leading-relaxed">Select the format of this lecture.</p>
                             </div>
                             <div className="col-span-2">
                                 <select className="input-field" value={newLesson.type} onChange={e => setNewLesson({ ...newLesson, type: e.target.value })}>
@@ -222,32 +206,7 @@ const LessonForm = () => {
 
                         <div className="grid grid-cols-3 gap-10 items-start">
                             <div className="space-y-1">
-                                <h4 className="text-sm font-bold text-[#0F172A]">Target Unit</h4>
-                                <p className="text-xs text-[#64748B] leading-relaxed">Select which section this lesson belongs to.</p>
-                            </div>
-                            <div className="col-span-2">
-                                <select 
-                                    className="input-field" 
-                                    value={newLesson.unit_id} 
-                                    onChange={e => setNewLesson({ ...newLesson, unit_id: e.target.value })}
-                                    required
-                                >
-                                    <option value="">Select a Unit</option>
-                                    {units.map(unit => (
-                                        <option key={unit.id} value={unit.id}>{unit.title}</option>
-                                    ))}
-                                </select>
-                                {units.length === 0 && !unitsLoading && (
-                                    <p className="text-[10px] text-amber-600 font-bold mt-2">
-                                        No units found. Please create a unit in the course dashboard first.
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-10 items-start">
-                            <div className="space-y-1">
-                                <h4 className="text-sm font-bold text-[#0F172A]">Lesson Properties</h4>
+                                <h4 className="text-sm font-bold text-[#0F172A]">Lecture Properties</h4>
                                 <p className="text-xs text-[#64748B] leading-relaxed">Configure access and requirements.</p>
                             </div>
                             <div className="col-span-2 flex gap-4">
@@ -425,7 +384,7 @@ const LessonForm = () => {
                     <div className="pt-8 flex justify-end gap-4 border-t border-[#F1F5F9]">
                         <button type="button" onClick={() => navigate(`/teacher/courses/${courseId}`)} className="btn-secondary px-8">Discard</button>
                         <button type="submit" disabled={saving} className="bg-indigo-900 text-white px-10 py-3 rounded-lg font-bold shadow-lg shadow-indigo-900/10 hover:bg-slate-800 transition-all flex items-center gap-2">
-                            {saving ? <Loader2 className="animate-spin" size={18} /> : (isEdit ? 'Save Changes' : 'Create Lesson')}
+                            {saving ? <Loader2 className="animate-spin" size={18} /> : (isEdit ? 'Save Changes' : 'Add Lecture')}
                         </button>
                     </div>
                 </form>

@@ -8,7 +8,7 @@ const emptyTeacher = {
     email: '',
     phone: '',
     password: '',
-    main_subject: '',
+    main_subject: 'General',
     profile_image_url: '',
     address: '',
     date_of_birth: '',
@@ -18,7 +18,6 @@ const emptyTeacher = {
 const ManageTeachers = () => {
     const navigate = useNavigate();
     const [teachers, setTeachers] = useState([]);
-    const [subjects, setSubjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingTeacher, setEditingTeacher] = useState(null);
@@ -32,12 +31,8 @@ const ManageTeachers = () => {
 
     const fetchData = async () => {
         try {
-            const [tRes, sRes] = await Promise.all([
-                api.get('/admin/teachers'),
-                api.get('/admin/subjects'),
-            ]);
+            const tRes = await api.get('/admin/teachers');
             setTeachers(tRes.data.data);
-            setSubjects(sRes.data.data);
         } catch (err) {
             console.error(err);
         } finally {
@@ -58,7 +53,7 @@ const ManageTeachers = () => {
             email: teacher.email || '',
             phone: teacher.phone || '',
             password: '',
-            main_subject: teacher.main_subject || '',
+            main_subject: teacher.main_subject || 'General',
             profile_image_url: teacher.profile_image_url || '',
             address: '',
             date_of_birth: '',
@@ -283,13 +278,6 @@ const ManageTeachers = () => {
                                 <div>
                                     <label className="text-sm font-bold text-[#0F172A] mb-1.5 block">Password {editingTeacher && <span className="text-[#94A3B8] font-normal">(leave blank to keep)</span>}</label>
                                     <input className="input-field" placeholder="••••••••" type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} required={!editingTeacher} />
-                                </div>
-                                <div>
-                                    <label className="text-sm font-bold text-[#0F172A] mb-1.5 block">Primary Subject</label>
-                                    <select className="input-field cursor-pointer" value={formData.main_subject} onChange={e => setFormData({ ...formData, main_subject: e.target.value })} required>
-                                        <option value="" disabled>Select subject...</option>
-                                        {subjects.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                                    </select>
                                 </div>
                             </div>
 

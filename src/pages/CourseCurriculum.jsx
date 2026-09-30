@@ -29,11 +29,6 @@ const CourseCurriculum = () => {
         parent_email: '',
         parent_password: ''
     });
-    const [units, setUnits] = useState([]);
-    const [unitsLoading, setUnitsLoading] = useState(false);
-    const [unitModalOpen, setUnitModalOpen] = useState(false);
-    const [currentUnit, setCurrentUnit] = useState({ title: '', sort_order: 1 });
-    const [unitSaving, setUnitSaving] = useState(false);
     const [quizSubmissions, setQuizSubmissions] = useState([]);
     const [loadingSubmissions, setLoadingSubmissions] = useState(false);
     const [submissionsModalOpen, setSubmissionsModalOpen] = useState(false);
@@ -46,19 +41,9 @@ const CourseCurriculum = () => {
     const [selectedAssignmentStudent, setSelectedAssignmentStudent] = useState(null);
     const [sortConfig, setSortConfig] = useState({ key: 'points', direction: 'desc' });
 
-    // ΓöÇΓöÇ Copy Unit state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-    const [copyUnitModalOpen, setCopyUnitModalOpen] = useState(false);
-    const [copyUnitSource, setCopyUnitSource] = useState(null); // { id, title }
     const [myCourses, setMyCourses] = useState([]);
-    const [copyUnitSaving, setCopyUnitSaving] = useState(false);
-
-    // ΓöÇΓöÇ Copy Lesson state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     const [copyLessonModalOpen, setCopyLessonModalOpen] = useState(false);
-    const [copyLessonSource, setCopyLessonSource] = useState(null); // { id, title }
-    const [copyLessonStep, setCopyLessonStep] = useState('course'); // 'course' | 'unit'
-    const [copyLessonSelectedCourse, setCopyLessonSelectedCourse] = useState(null);
-    const [copyLessonUnits, setCopyLessonUnits] = useState([]);
-    const [copyLessonUnitsLoading, setCopyLessonUnitsLoading] = useState(false);
+    const [copyLessonSource, setCopyLessonSource] = useState(null);
     const [copyLessonSaving, setCopyLessonSaving] = useState(false);
 
     const [addStudentsOpen, setAddStudentsOpen] = useState(false);
@@ -92,7 +77,7 @@ const CourseCurriculum = () => {
             await api.put(`/teacher/lessons/${lesson.id}/video-points-override`, { enabled: next });
             setPointsOverrideIds(prev => next ? [...prev, lesson.id] : prev.filter(id => id !== lesson.id));
         } catch (err) {
-            alert(err.response?.data?.message || 'فشل تحديث احتساب النقاط');
+            alert(err.response?.data?.message || 'Failed to update points setting');
         } finally {
             setTogglingPointsId(null);
         }
@@ -106,14 +91,12 @@ const CourseCurriculum = () => {
 
     const fetchCurriculum = async () => {
         try {
-            const [cRes, lRes, uRes] = await Promise.all([
+            const [cRes, lRes] = await Promise.all([
                 api.get(`/teacher/courses/${courseId}`),
-                api.get(`/teacher/courses/${courseId}/lessons`),
-                api.get(`/teacher/courses/${courseId}/units`)
+                api.get(`/teacher/courses/${courseId}/lessons`)
             ]);
             setCourse(cRes.data.data);
             setLessons(lRes.data.data);
-            setUnits(uRes.data.data || []);
         } catch (err) {
             console.error(err);
             if (err.response?.status === 404) navigate('/teacher/courses');
@@ -134,61 +117,19 @@ const CourseCurriculum = () => {
         }
     };
 
-    const fetchUnits = async () => {
-        setUnitsLoading(true);
-        try {
-            const res = await api.get(`/teacher/courses/${courseId}/units`);
-            setUnits(res.data.data || []);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setUnitsLoading(false);
-        }
-    };
-
-    const handleSaveUnit = async (e) => {
-        e.preventDefault();
-        setUnitSaving(true);
-        try {
-            const payload = { ...currentUnit, course_id: parseInt(courseId) };
-            if (currentUnit.id) {
-                await api.put(`/teacher/units/${currentUnit.id}`, payload);
-            } else {
-                await api.post('/teacher/units', payload);
-            }
-            setUnitModalOpen(false);
-            setCurrentUnit({ title: '', sort_order: 1 });
-            fetchUnits();
-        } catch (err) {
-            alert('Failed to save unit.');
-        } finally {
-            setUnitSaving(false);
-        }
-    };
-
-    const handleDeleteUnit = async (id) => {
-        if (!window.confirm('Delete this unit? It may affect lessons.')) return;
-        try {
-            await api.delete(`/teacher/units/${id}`);
-            fetchUnits();
-        } catch (err) {
-            alert('Error deleting unit');
-        }
-    };
-
     const handleResetCoursePoints = async () => {
         const confirmed = window.confirm(
-            'سيتم حذف كل نقاط الطلبة لهذا الكورس فقط من قاعدة البيانات (الليدربورد). هل تريد المتابعة؟'
+            'This will delete all student points for this course only (leaderboard). Continue?'
         );
         if (!confirmed) return;
         setResettingPoints(true);
         try {
             const res = await api.post(`/teacher/courses/${courseId}/points/reset`);
             const deleted = res.data?.deleted_count ?? 0;
-            alert(`تم تصفير النقاط بنجاح. عدد السجلات المحذوفة: ${deleted}`);
+            alert(`Points reset successfully. Deleted records: ${deleted}`);
         } catch (err) {
             console.error(err);
-            alert(err.response?.data?.message || 'فشل تصفير النقاط');
+            alert(err.response?.data?.message || 'Failed to reset points');
         } finally {
             setResettingPoints(false);
         }
@@ -217,11 +158,11 @@ const CourseCurriculum = () => {
     };
 
     const handleDeleteLesson = async (id) => {
-        if (!window.confirm('Delete this lesson?')) return;
+        if (!window.confirm('Delete this lecture?')) return;
         try {
             await api.delete(`/teacher/lessons/${id}`);
             fetchCurriculum();
-        } catch (err) { alert('Error deleting lesson'); }
+        } catch (err) { alert('Error deleting lecture'); }
     };
 
     const handleViewSubmissions = async (lesson) => {
@@ -335,59 +276,21 @@ const CourseCurriculum = () => {
         } catch (err) { console.error(err); }
     };
 
-    // ΓöÇΓöÇ Open copy-unit modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-    const openCopyUnit = async (unit) => {
-        setCopyUnitSource(unit);
-        await fetchMyCourses();
-        setCopyUnitModalOpen(true);
-    };
-
-    const handleCopyUnit = async (destCourseId) => {
-        setCopyUnitSaving(true);
-        try {
-            await api.post(`/teacher/units/${copyUnitSource.id}/copy`, { destination_course_id: destCourseId });
-            setCopyUnitModalOpen(false);
-            alert('╪¬┘à ┘å╪│╪« ╪º┘ä┘ê╪¡╪»╪⌐ ╪¿┘å╪¼╪º╪¡!');
-        } catch (err) {
-            alert(err.response?.data?.message || '┘ü╪┤┘ä ┘å╪│╪« ╪º┘ä┘ê╪¡╪»╪⌐');
-        } finally {
-            setCopyUnitSaving(false);
-        }
-    };
-
-    // ΓöÇΓöÇ Open copy-lesson modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     const openCopyLesson = async (lesson) => {
         setCopyLessonSource(lesson);
-        setCopyLessonStep('course');
-        setCopyLessonSelectedCourse(null);
-        setCopyLessonUnits([]);
         await fetchMyCourses();
         setCopyLessonModalOpen(true);
     };
 
-    const handleCopyLessonSelectCourse = async (courseItem) => {
-        setCopyLessonSelectedCourse(courseItem);
-        setCopyLessonUnitsLoading(true);
-        setCopyLessonStep('unit');
-        try {
-            const res = await api.get(`/teacher/courses/${courseItem.id}/units`);
-            setCopyLessonUnits(res.data.data || []);
-        } catch (err) {
-            alert('┘ü╪┤┘ä ╪¬╪¡┘à┘è┘ä ╪º┘ä┘ê╪¡╪»╪º╪¬');
-            setCopyLessonStep('course');
-        } finally {
-            setCopyLessonUnitsLoading(false);
-        }
-    };
-
-    const handleCopyLesson = async (destUnitId) => {
+    const handleCopyLesson = async (destCourseId) => {
         setCopyLessonSaving(true);
         try {
-            await api.post(`/teacher/lessons/${copyLessonSource.id}/copy`, { destination_unit_id: destUnitId });
+            await api.post(`/teacher/lessons/${copyLessonSource.id}/copy`, { destination_course_id: destCourseId });
             setCopyLessonModalOpen(false);
-            alert('╪¬┘à ┘å╪│╪« ╪º┘ä╪»╪▒╪│ ╪¿┘å╪¼╪º╪¡!');
+            alert('Lecture copied successfully!');
+            if (destCourseId === parseInt(courseId, 10)) fetchCurriculum();
         } catch (err) {
-            alert(err.response?.data?.message || '┘ü╪┤┘ä ┘å╪│╪« ╪º┘ä╪»╪▒╪│');
+            alert(err.response?.data?.message || 'Failed to copy lecture');
         } finally {
             setCopyLessonSaving(false);
         }
@@ -456,7 +359,7 @@ const CourseCurriculum = () => {
             case 'text':
                 return <span className="flex items-center gap-1.5 text-[#0F172A] text-sm font-bold uppercase tracking-widest"><FileText size={14} /> Text</span>;
             default:
-                return <span className="flex items-center gap-1.5 text-[#0F172A] text-sm font-bold uppercase tracking-widest"><PlayCircle size={14} /> Lesson</span>;
+                return <span className="flex items-center gap-1.5 text-[#0F172A] text-sm font-bold uppercase tracking-widest"><PlayCircle size={14} /> Lecture</span>;
         }
     };
 
@@ -482,7 +385,7 @@ const CourseCurriculum = () => {
                 <div>
                     <h1 className="text-[32px] font-extrabold text-[#0F172A] tracking-tight">{course?.title}</h1>
                     <p className="text-[#64748B] text-base font-semibold mt-2">
-                        {activeTab === 'lessons' ? 'Curriculum Builder & Lesson Management' : 'Course Participants & Performance'}
+                        {activeTab === 'lessons' ? 'Lectures & Exams' : 'Course Students'}
                     </p>
                 </div>
 
@@ -496,20 +399,11 @@ const CourseCurriculum = () => {
                             {resettingPoints ? <Loader2 size={18} className="animate-spin" /> : <RotateCcw size={18} />}
                             Reset Points
                         </button>
-                        <button
-                            onClick={() => {
-                                setCurrentUnit({ title: '', sort_order: units.length + 1 });
-                                setUnitModalOpen(true);
-                            }}
-                            className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-6 py-3 font-bold tracking-tight flex items-center justify-center gap-2 transition-all border border-indigo-100 rounded-lg"
-                        >
-                            <Layers size={18} /> Manage Units
-                        </button>
                         <Link
                             to={`/teacher/courses/${courseId}/lessons/new`}
                             className="bg-[#0F172A] hover:bg-black text-white px-6 py-3 font-bold tracking-tight flex items-center justify-center gap-2 transition-all"
                         >
-                            <Plus size={18} /> Add New Lesson
+                            <Plus size={18} /> Add Lecture
                         </Link>
                     </div>
                 ) : (
@@ -528,7 +422,7 @@ const CourseCurriculum = () => {
                     onClick={() => setActiveTab('lessons')}
                     className={`flex items-center gap-2 pb-2 transition-all duration-200 ${activeTab === 'lessons' ? 'text-[#0F172A] font-extrabold border-b-2 border-[#0F172A]' : 'text-[#94A3B8] font-bold hover:text-[#0F172A]'}`}
                 >
-                    Lessons ({lessons.length})
+                    Lectures ({lessons.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('students')}
@@ -543,12 +437,6 @@ const CourseCurriculum = () => {
                     <MessageCircle size={16} /> Chat
                 </button>
                 <button
-                    onClick={() => setActiveTab('units')}
-                    className={`flex items-center gap-2 pb-2 transition-all duration-200 ${activeTab === 'units' ? 'text-[#0F172A] font-extrabold border-b-2 border-[#0F172A]' : 'text-[#94A3B8] font-bold hover:text-[#0F172A]'}`}
-                >
-                    Units ({units.length})
-                </button>
-                <button
                     onClick={() => setActiveTab('settings')}
                     className={`flex items-center gap-2 pb-2 transition-all duration-200 ${activeTab === 'settings' ? 'text-[#0F172A] font-extrabold border-b-2 border-[#0F172A]' : 'text-[#94A3B8] font-bold hover:text-[#0F172A]'}`}
                 >
@@ -561,13 +449,13 @@ const CourseCurriculum = () => {
                 {activeTab === 'lessons' ? (
                     lessons.length === 0 ? (
                         <div className="py-20 text-center">
-                            <p className="font-extrabold text-[#0F172A] text-xl">No lessons yet</p>
-                            <p className="text-sm font-semibold text-[#64748B] mt-2 mb-6">Create material to populate this module.</p>
+                            <p className="font-extrabold text-[#0F172A] text-xl">No lectures yet</p>
+                            <p className="text-sm font-semibold text-[#64748B] mt-2 mb-6">Add lectures to this course.</p>
                             <Link
                                 to={`/teacher/courses/${courseId}/lessons/new`}
                                 className="text-[#0F172A] font-bold border-b border-[#0F172A] pb-0.5 hover:text-black hover:border-black transition-all inline-flex items-center gap-2"
                             >
-                                <Plus size={16} /> Create Lesson
+                                <Plus size={16} /> Add Lecture
                             </Link>
                         </div>
                     ) : (
@@ -575,7 +463,7 @@ const CourseCurriculum = () => {
                             {/* Header Row */}
                             <div className="grid grid-cols-12 gap-4 py-4 px-2 text-xs font-bold text-[#94A3B8] uppercase tracking-widest hidden md:grid">
                                 <div className="col-span-1">No.</div>
-                                <div className="col-span-5">Lesson Identifier</div>
+                                <div className="col-span-5">Lecture</div>
                                 <div className="col-span-2">Format</div>
                                 <div className="col-span-3">Status</div>
                                 <div className="col-span-1 text-right">Actions</div>
@@ -608,13 +496,13 @@ const CourseCurriculum = () => {
                                                         type="button"
                                                         onClick={() => handleTogglePointsOverride(lesson)}
                                                         disabled={togglingPointsId === lesson.id}
-                                                        title="عند التفعيل يحصل الطالب على نقاط الفيديو في أي وقت بدون شرط الـ 24 ساعة"
+                                                        title="When enabled, students get video points at any time without the 24-hour window"
                                                         className={`flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] font-bold transition-all disabled:opacity-60 ${
                                                             on ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9]'
                                                         }`}
                                                     >
                                                         {togglingPointsId === lesson.id && <Loader2 size={12} className="animate-spin" />}
-                                                        <span dir="rtl">احتساب النقاط</span>
+                                                        <span>Count Points</span>
                                                         <span className={`relative inline-flex h-4 w-7 flex-shrink-0 rounded-full transition-colors ${on ? 'bg-amber-500' : 'bg-slate-300'}`}>
                                                             <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all ${on ? 'left-[14px]' : 'left-0.5'}`} />
                                                         </span>
@@ -625,7 +513,7 @@ const CourseCurriculum = () => {
                                         <div className="col-span-1 text-right flex justify-end gap-2">
                                             <button
                                                 onClick={() => openCopyLesson(lesson)}
-                                                title="┘å╪│╪« ╪º┘ä╪»╪▒╪│ ╪Ñ┘ä┘ë ┘â┘ê╪▒╪│ ╪ó╪«╪▒"
+                                                title="Copy lecture to another course"
                                                 className="text-[#94A3B8] hover:text-indigo-600 transition-all"
                                             >
                                                 <Copy size={16} />
@@ -778,61 +666,22 @@ const CourseCurriculum = () => {
                             })}
                         </div>
                     )
-                ) : activeTab === 'units' ? (
-                    <div className="flex flex-col border-t border-b border-[#E2E8F0] divide-y divide-[#E2E8F0]">
-                        <div className="grid grid-cols-12 gap-4 py-4 px-2 text-xs font-bold text-[#94A3B8] uppercase tracking-widest hidden md:grid">
-                            <div className="col-span-1">Order</div>
-                            <div className="col-span-8">Unit Title</div>
-                            <div className="col-span-3 text-right">Actions</div>
-                        </div>
-
-                        {units.length === 0 ? (
-                            <div className="py-20 text-center col-span-12">
-                                <p className="font-extrabold text-[#0F172A] text-xl">No units defined</p>
-                                <p className="text-sm font-semibold text-[#64748B] mt-2">Units help organize lessons into logical sections.</p>
-                            </div>
-                        ) : (
-                            units.sort((a,b) => a.sort_order - b.sort_order).map((unit) => (
-                                <div key={unit.id} className="grid grid-cols-12 gap-4 py-6 px-2 hover:bg-[#F8FAFC] transition-colors items-center group">
-                                    <div className="col-span-1 font-bold text-[#64748B]">{unit.sort_order}</div>
-                                    <div className="col-span-8">
-                                        <p className="font-extrabold text-[#0F172A] text-base">{unit.title}</p>
-                                    </div>
-                                    <div className="col-span-3 text-right flex justify-end gap-2">
-                                        <button
-                                            onClick={() => openCopyUnit(unit)}
-                                            title="┘å╪│╪« ╪º┘ä┘ê╪¡╪»╪⌐ ╪Ñ┘ä┘ë ┘â┘ê╪▒╪│ ╪ó╪«╪▒"
-                                            className="text-[#94A3B8] hover:text-indigo-600 transition-all"
-                                        >
-                                            <Copy size={16} />
-                                        </button>
-                                        <button onClick={() => { setCurrentUnit(unit); setUnitModalOpen(true); }} className="text-[#94A3B8] hover:text-[#0F172A] transition-all">
-                                            <Edit2 size={18} />
-                                        </button>
-                                        <button onClick={() => handleDeleteUnit(unit.id)} className="text-[#94A3B8] hover:text-red-600 transition-all">
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
                 ) : (
                     <div className="py-12 max-w-xl mx-auto space-y-6">
                         <div className="text-center">
                             <Settings className="mx-auto text-[#94A3B8] mb-4" size={40} />
                             <p className="font-extrabold text-[#0F172A] text-xl">Module Settings</p>
-                            <p className="text-sm font-semibold text-[#64748B] mt-2">إدارة إعدادات الكورس والنقاط.</p>
+                            <p className="text-sm font-semibold text-[#64748B] mt-2">Manage course and points settings.</p>
                         </div>
-                        <div className="border border-red-100 bg-red-50/60 rounded-2xl p-6 text-right">
-                            <h3 className="font-extrabold text-[#0F172A] text-lg mb-2">تصفير نقاط الكورس</h3>
+                        <div className="border border-red-100 bg-red-50/60 rounded-2xl p-6 text-left">
+                            <h3 className="font-extrabold text-[#0F172A] text-lg mb-2">Reset Course Points</h3>
                             <p className="text-sm font-semibold text-[#64748B] mb-4 leading-relaxed">
-                                يحذف كل نقاط الطلبة لهذا الكورس فقط من قاعدة البيانات (يؤثر على ترتيب الليدربورد داخل الكورس).
+                                Deletes all student points for this course only (affects the course leaderboard ranking).
                             </p>
                             <button
                                 onClick={handleResetCoursePoints}
                                 disabled={resettingPoints}
-                                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 font-bold rounded-lg flex items-center gap-2 disabled:opacity-60 mr-auto"
+                                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 font-bold rounded-lg flex items-center gap-2 disabled:opacity-60"
                             >
                                 {resettingPoints ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
                                 Reset Points
@@ -916,56 +765,6 @@ const CourseCurriculum = () => {
                                 className="w-full bg-[#0F172A] text-white h-14 rounded-2xl font-extrabold flex items-center justify-center gap-2 hover:bg-black transition-all shadow-lg shadow-slate-900/10 active:scale-[0.98] disabled:opacity-70 mt-6"
                             >
                                 {saving ? <Loader2 className="animate-spin" size={20} /> : 'Process Assignment'}
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Unit Modal */}
-            {unitModalOpen && (
-                <div className="fixed inset-0 lg:left-[260px] bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center p-4 z-[150] animate-in fade-in duration-200">
-                    <div className="bg-white rounded-[32px] w-full max-w-md shadow-xl p-8 animate-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center mb-8 border-b border-[#F1F5F9] pb-6">
-                            <div>
-                                <h2 className="text-2xl font-bold text-[#0F172A] tracking-tight">{currentUnit.id ? 'Edit Unit' : 'Create New Unit'}</h2>
-                                <p className="text-sm text-[#64748B] mt-1 font-medium">Organize your curriculum structure.</p>
-                            </div>
-                            <button onClick={() => setUnitModalOpen(false)} className="w-10 h-10 rounded-full bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0] hover:text-[#0F172A] flex items-center justify-center transition-colors">
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSaveUnit} className="space-y-6 text-left">
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="text-sm font-bold text-[#0F172A] mb-1.5 block">Unit Title</label>
-                                    <input
-                                        className="w-full bg-[#F8FAFC] border border-[#E2E8F0] h-12 px-4 rounded-xl text-sm font-semibold text-[#0F172A] focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                                        placeholder="E.g., Getting Started with Fundamentals"
-                                        value={currentUnit.title}
-                                        onChange={e => setCurrentUnit({ ...currentUnit, title: e.target.value })}
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-sm font-bold text-[#0F172A] mb-1.5 block">Sort Order</label>
-                                    <input
-                                        type="number"
-                                        className="w-full bg-[#F8FAFC] border border-[#E2E8F0] h-12 px-4 rounded-xl text-sm font-semibold text-[#0F172A] focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-mono"
-                                        value={currentUnit.sort_order}
-                                        onChange={e => setCurrentUnit({ ...currentUnit, sort_order: parseInt(e.target.value) || 1 })}
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={unitSaving}
-                                className="w-full bg-[#0F172A] text-white h-14 rounded-2xl font-extrabold flex items-center justify-center gap-2 hover:bg-black transition-all shadow-lg shadow-slate-900/10 active:scale-[0.98] disabled:opacity-70 mt-6"
-                            >
-                                {unitSaving ? <Loader2 className="animate-spin" size={20} /> : (currentUnit.id ? 'Update Unit' : 'Create Unit')}
                             </button>
                         </form>
                     </div>
@@ -1253,43 +1052,39 @@ const CourseCurriculum = () => {
                 </div>
             )}
 
-            {/* ΓöÇΓöÇΓöÇ Copy Unit Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
-            {copyUnitModalOpen && (
+            {copyLessonModalOpen && (
                 <div className="fixed inset-0 lg:left-[260px] bg-[#0F172A]/50 backdrop-blur-sm flex items-center justify-center p-4 z-[200] animate-in fade-in duration-200">
                     <div className="bg-white rounded-[28px] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                        {/* Header */}
                         <div className="p-6 border-b border-[#F1F5F9] flex justify-between items-center">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
                                     <Copy size={18} className="text-indigo-600" />
                                 </div>
                                 <div>
-                                    <h2 className="text-lg font-extrabold text-[#0F172A] tracking-tight">┘å╪│╪« ╪º┘ä┘ê╪¡╪»╪⌐</h2>
-                                    <p className="text-xs text-[#64748B] font-semibold mt-0.5 truncate max-w-[220px]">{copyUnitSource?.title}</p>
+                                    <h2 className="text-lg font-extrabold text-[#0F172A] tracking-tight">Copy Lecture</h2>
+                                    <p className="text-xs text-[#64748B] font-semibold mt-0.5 truncate max-w-[220px]">{copyLessonSource?.title}</p>
                                 </div>
                             </div>
-                            <button onClick={() => setCopyUnitModalOpen(false)} className="w-9 h-9 rounded-full bg-[#F1F5F9] flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0] hover:text-[#0F172A] transition-colors">
+                            <button onClick={() => setCopyLessonModalOpen(false)} className="w-9 h-9 rounded-full bg-[#F1F5F9] flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0] hover:text-[#0F172A] transition-colors">
                                 <X size={18} />
                             </button>
                         </div>
 
-                        {/* Course List */}
                         <div className="p-4 max-h-[380px] overflow-y-auto space-y-2">
-                            <p className="text-[11px] font-black text-[#94A3B8] uppercase tracking-widest px-2 mb-3">╪º╪«╪¬╪▒ ╪º┘ä┘â┘ê╪▒╪│ ╪º┘ä┘à╪▒╪º╪» ╪º┘ä┘å╪│╪« ╪Ñ┘ä┘è┘ç</p>
+                            <p className="text-[11px] font-black text-[#94A3B8] uppercase tracking-widest px-2 mb-3">Choose the destination course</p>
                             {myCourses.length === 0 ? (
                                 <div className="py-10 text-center">
                                     <Loader2 className="animate-spin mx-auto text-indigo-400 mb-2" size={28} />
-                                    <p className="text-sm text-[#64748B] font-semibold">╪¼╪º╪▒┘è ╪º┘ä╪¬╪¡┘à┘è┘ä...</p>
                                 </div>
                             ) : (
                                 myCourses.map(c => (
                                     <button
                                         key={c.id}
-                                        disabled={copyUnitSaving}
-                                        onClick={() => handleCopyUnit(c.id)}
+                                        disabled={copyLessonSaving}
+                                        onClick={() => handleCopyLesson(c.id)}
                                         className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-[#E2E8F0] hover:border-indigo-300 hover:bg-indigo-50/60 transition-all text-left group disabled:opacity-50"
                                     >
-                                        {copyUnitSaving ? (
+                                        {copyLessonSaving ? (
                                             <Loader2 size={16} className="animate-spin text-indigo-500 shrink-0" />
                                         ) : (
                                             <div className="w-7 h-7 rounded-lg bg-[#F1F5F9] group-hover:bg-indigo-100 flex items-center justify-center shrink-0 transition-colors">
@@ -1304,124 +1099,8 @@ const CourseCurriculum = () => {
                         </div>
 
                         <div className="p-4 border-t border-[#F1F5F9] bg-[#F8FAFC]">
-                            <button onClick={() => setCopyUnitModalOpen(false)} className="w-full h-11 rounded-xl font-bold text-[#64748B] border border-[#E2E8F0] bg-white hover:bg-[#F1F5F9] transition-colors text-sm">
-                                ╪Ñ┘ä╪║╪º╪í
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ΓöÇΓöÇΓöÇ Copy Lesson Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
-            {copyLessonModalOpen && (
-                <div className="fixed inset-0 lg:left-[260px] bg-[#0F172A]/50 backdrop-blur-sm flex items-center justify-center p-4 z-[200] animate-in fade-in duration-200">
-                    <div className="bg-white rounded-[28px] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                        {/* Header */}
-                        <div className="p-6 border-b border-[#F1F5F9] flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-                                    <Copy size={18} className="text-indigo-600" />
-                                </div>
-                                <div>
-                                    <h2 className="text-lg font-extrabold text-[#0F172A] tracking-tight">┘å╪│╪« ╪º┘ä╪»╪▒╪│</h2>
-                                    <p className="text-xs text-[#64748B] font-semibold mt-0.5 truncate max-w-[220px]">{copyLessonSource?.title}</p>
-                                </div>
-                            </div>
-                            <button onClick={() => setCopyLessonModalOpen(false)} className="w-9 h-9 rounded-full bg-[#F1F5F9] flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0] hover:text-[#0F172A] transition-colors">
-                                <X size={18} />
-                            </button>
-                        </div>
-
-                        {/* Step Indicator */}
-                        <div className="px-6 pt-4 flex items-center gap-2">
-                            <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest transition-colors ${copyLessonStep === 'course' ? 'text-indigo-600' : 'text-[#94A3B8]'}`}>
-                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black transition-colors ${copyLessonStep === 'course' ? 'bg-indigo-600 text-white' : 'bg-green-500 text-white'}`}>
-                                    {copyLessonStep === 'course' ? '1' : <CheckCircle size={12} />}
-                                </div>
-                                ╪º┘ä┘â┘ê╪▒╪│
-                            </div>
-                            <ChevronRight size={12} className="text-[#CBD5E1]" />
-                            <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest transition-colors ${copyLessonStep === 'unit' ? 'text-indigo-600' : 'text-[#94A3B8]'}`}>
-                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black transition-colors ${copyLessonStep === 'unit' ? 'bg-indigo-600 text-white' : 'bg-[#E2E8F0] text-[#94A3B8]'}`}>2</div>
-                                ╪º┘ä┘ê╪¡╪»╪⌐
-                            </div>
-                        </div>
-
-                        {/* Content */}
-                        <div className="p-4 max-h-[340px] overflow-y-auto space-y-2">
-                            {copyLessonStep === 'course' ? (
-                                <>
-                                    <p className="text-[11px] font-black text-[#94A3B8] uppercase tracking-widest px-2 mb-3">╪º╪«╪¬╪▒ ╪º┘ä┘â┘ê╪▒╪│</p>
-                                    {myCourses.length === 0 ? (
-                                        <div className="py-10 text-center">
-                                            <Loader2 className="animate-spin mx-auto text-indigo-400 mb-2" size={28} />
-                                        </div>
-                                    ) : (
-                                        myCourses.map(c => (
-                                            <button
-                                                key={c.id}
-                                                onClick={() => handleCopyLessonSelectCourse(c)}
-                                                className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-[#E2E8F0] hover:border-indigo-300 hover:bg-indigo-50/60 transition-all text-left group"
-                                            >
-                                                <div className="w-7 h-7 rounded-lg bg-[#F1F5F9] group-hover:bg-indigo-100 flex items-center justify-center shrink-0 transition-colors">
-                                                    <Layers size={14} className="text-[#64748B] group-hover:text-indigo-600 transition-colors" />
-                                                </div>
-                                                <span className="font-bold text-[#0F172A] text-sm truncate">{c.title}</span>
-                                                <ChevronRight size={14} className="ml-auto text-[#94A3B8] group-hover:text-indigo-500 shrink-0 transition-colors" />
-                                            </button>
-                                        ))
-                                    )}
-                                </>
-                            ) : (
-                                <>
-                                    <div className="flex items-center gap-2 mb-3 px-2">
-                                        <button
-                                            onClick={() => { setCopyLessonStep('course'); setCopyLessonSelectedCourse(null); }}
-                                            className="flex items-center gap-1 text-[11px] font-black text-indigo-500 hover:text-indigo-700 uppercase tracking-widest transition-colors"
-                                        >
-                                            <ChevronLeft size={12} /> ╪▒╪¼┘ê╪╣
-                                        </button>
-                                        <span className="text-[11px] font-black text-[#94A3B8] uppercase tracking-widest truncate">
-                                            ╪º┘ä┘ê╪¡╪»╪º╪¬ ┘ü┘è: {copyLessonSelectedCourse?.title}
-                                        </span>
-                                    </div>
-                                    {copyLessonUnitsLoading ? (
-                                        <div className="py-10 text-center">
-                                            <Loader2 className="animate-spin mx-auto text-indigo-400 mb-2" size={28} />
-                                            <p className="text-sm text-[#64748B] font-semibold">╪¼╪º╪▒┘è ╪¬╪¡┘à┘è┘ä ╪º┘ä┘ê╪¡╪»╪º╪¬...</p>
-                                        </div>
-                                    ) : copyLessonUnits.length === 0 ? (
-                                        <div className="py-10 text-center">
-                                            <p className="text-sm font-bold text-[#0F172A]">┘ä╪º ╪¬┘ê╪¼╪» ┘ê╪¡╪»╪º╪¬ ┘ü┘è ┘ç╪░╪º ╪º┘ä┘â┘ê╪▒╪│</p>
-                                            <p className="text-xs text-[#94A3B8] mt-1">┘é┘à ╪¿╪Ñ╪╢╪º┘ü╪⌐ ┘ê╪¡╪»╪º╪¬ ╪ú┘ê┘ä╪º┘ï</p>
-                                        </div>
-                                    ) : (
-                                        copyLessonUnits.sort((a,b) => a.sort_order - b.sort_order).map(u => (
-                                            <button
-                                                key={u.id}
-                                                disabled={copyLessonSaving}
-                                                onClick={() => handleCopyLesson(u.id)}
-                                                className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-[#E2E8F0] hover:border-indigo-300 hover:bg-indigo-50/60 transition-all text-left group disabled:opacity-50"
-                                            >
-                                                {copyLessonSaving ? (
-                                                    <Loader2 size={16} className="animate-spin text-indigo-500 shrink-0" />
-                                                ) : (
-                                                    <div className="w-6 h-6 rounded-lg bg-[#F1F5F9] group-hover:bg-indigo-100 flex items-center justify-center shrink-0 transition-colors text-[10px] font-black text-[#64748B] group-hover:text-indigo-600">
-                                                        {u.sort_order}
-                                                    </div>
-                                                )}
-                                                <span className="font-bold text-[#0F172A] text-sm truncate">{u.title}</span>
-                                                <CheckCircle size={14} className="ml-auto text-[#E2E8F0] group-hover:text-indigo-500 shrink-0 transition-colors" />
-                                            </button>
-                                        ))
-                                    )}
-                                </>
-                            )}
-                        </div>
-
-                        <div className="p-4 border-t border-[#F1F5F9] bg-[#F8FAFC]">
                             <button onClick={() => setCopyLessonModalOpen(false)} className="w-full h-11 rounded-xl font-bold text-[#64748B] border border-[#E2E8F0] bg-white hover:bg-[#F1F5F9] transition-colors text-sm">
-                                ╪Ñ┘ä╪║╪º╪í
+                                Cancel
                             </button>
                         </div>
                     </div>

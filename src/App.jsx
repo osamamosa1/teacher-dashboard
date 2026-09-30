@@ -8,7 +8,6 @@ import CourseCurriculum from './pages/CourseCurriculum';
 import LessonForm from './pages/LessonForm';
 import ManageStudents from './pages/ManageStudents';
 import ManageParents from './pages/ManageParents';
-import ManageSubjects from './pages/ManageSubjects';
 import Profile from './pages/Profile';
 import ManageGrades from './pages/ManageGrades';
 import MonthlyRevenue from './pages/MonthlyRevenue';
@@ -56,14 +55,6 @@ function App() {
           <ProtectedRoute allowedRoles={['admin']}>
             <Layout>
               <ManageTeachers />
-            </Layout>
-          </ProtectedRoute>
-        } />
-
-        <Route path="/admin/subjects" element={
-          <ProtectedRoute allowedRoles={['admin']}>
-            <Layout>
-              <ManageSubjects />
             </Layout>
           </ProtectedRoute>
         } />

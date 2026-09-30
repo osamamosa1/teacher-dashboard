@@ -76,9 +76,12 @@ const Layout = ({ children }) => {
                                 <Grid className="text-indigo-900" size={22} />
                             )}
                         </div>
-                        <h2 className="text-xl font-extrabold text-[#1e293b] tracking-tight whitespace-nowrap">
-                            {settings?.app_name || (isAdmin ? 'Admin' : 'Teacher')}
-                        </h2>
+                        <div className="leading-tight">
+                            <h2 className="text-xl font-extrabold text-[#1e293b] tracking-tight whitespace-nowrap">
+                                YouTop
+                            </h2>
+                            <p className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-widest">Dashboard</p>
+                        </div>
                     </div>
                     <button 
                         onClick={() => setIsSidebarOpen(false)}
@@ -98,11 +101,8 @@ const Layout = ({ children }) => {
                             <NavLink to="/admin/teachers" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
                                 <Users size={20} /> <span className="nav-text">Teachers</span>
                             </NavLink>
-                            <NavLink to="/admin/subjects" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-                                <BookOpen size={20} /> <span className="nav-text">Subjects</span>
-                            </NavLink>
                             <NavLink to="/admin/grades" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-                                <GraduationCap size={20} /> <span className="nav-text">Grades</span>
+                                <GraduationCap size={20} /> <span className="nav-text">Levels</span>
                             </NavLink>
                         </>
                     ) : (
@@ -117,7 +117,7 @@ const Layout = ({ children }) => {
                                 <PieChart size={20} /> <span className="nav-text">Parents</span>
                             </NavLink>
                             <NavLink to="/teacher/grades" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-                                <GraduationCap size={20} /> <span className="nav-text">Grades</span>
+                                <GraduationCap size={20} /> <span className="nav-text">Levels</span>
                             </NavLink>
                             <NavLink to="/teacher/current-exams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
                                 <ClipboardList size={20} /> <span className="nav-text">Current Exams</span>
